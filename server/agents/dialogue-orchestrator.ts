@@ -1,9 +1,11 @@
-import { getPeopleByIds, getTopic } from "@/lib/content";
+import { getPeopleByIds, getTopicById } from "@/lib/content";
 import { EpisodeCreateInputSchema, EpisodeDraftSchema, type EpisodeCreateInput, type EpisodeDraft } from "@/server/contracts";
 
 export function generateDialogueDraft(rawInput: EpisodeCreateInput): EpisodeDraft {
   const input = EpisodeCreateInputSchema.parse(rawInput);
   const topic = getTopicById(input.topicId);
+  if (!topic) throw new Error("找不到对应问题");
+
   const people = getPeopleByIds(input.personIds);
 
   if (people.length < 2) {
@@ -56,10 +58,4 @@ export function generateDialogueDraft(rawInput: EpisodeCreateInput): EpisodeDraf
   };
 
   return EpisodeDraftSchema.parse(draft);
-}
-
-function getTopicById(id: string) {
-  const topic = getTopic(id);
-  if (topic) return topic;
-  throw new Error("找不到对应问题");
 }
