@@ -38,7 +38,7 @@ export const StudioEpisodeUpdateSchema = z.object({
   title: z.string().trim().min(1).max(120),
   question: z.string().trim().min(1).max(240),
   combinationType: z.string().trim().min(1).max(100),
-  disclosure: z.string().trim().min(1).max(300),
+  disclosure: z.string().trim().min(1, "发布声明不能为空").max(300),
   turns: z.array(EpisodeTurnSchema).max(20),
   status: z.enum(["draft", "review", "published"])
 });

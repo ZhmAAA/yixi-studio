@@ -16,7 +16,7 @@ export default async function PersonDetailPage({ params }: { params: Promise<{ s
         <span className={person.type === "hot" ? "eyebrow hot" : "eyebrow"}>{person.type === "hot" ? "热点人物" : "经典人物"}</span>
         <h1>{person.displayName}</h1>
         <p>{person.role} · {person.era}</p>
-        <Link href="/create" className="button button-dark">让 TA 参与一席</Link>
+        <Link href="/create" className="button button-light">预约开一席</Link>
       </section>
       <div className="detail-layout">
         <div className="detail-main">

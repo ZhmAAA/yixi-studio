@@ -4,7 +4,7 @@
 
 “一席话”是一款围绕**热点与经典问题**，邀请**热点与经典人物**展开多角色对谈的 Web 产品。
 
-它把公开资料、人物观点与编辑策划组合成一场可阅读、可收听、可分享的 AI 对谈。所有内容都会明确标注：
+它把公开资料、人物观点与编辑策划组合成一场可阅读、有来源的 AI 对谈。这一版没有音频，也不能把对谈当成本人发言。全站固定标注：
 
 > 基于公开资料的 AI 演绎，非本人发言，不代表本人观点。
 
@@ -18,77 +18,91 @@
 - TypeScript
 - React 19
 - Zod 内容与请求校验
-- 前端、服务层、Agent 编排器和仓储层的模块化单体结构
-- GitHub Actions 自动执行 lint 与 build
+- Node.js 22.13+（默认用内置 `node:sqlite` 把一席写到文件）
+- 可选 Postgres：设置 `DATABASE_URL` 后走同一套 repository 接口
+- GitHub Actions 用 `npm ci` 执行 lint 与 build
 
-## 第一版目标
+## 第一版实际能做的
 
 - 浏览热点问题与经典问题
 - 浏览热点人物与经典人物
-- 选择一个问题和两位人物，生成一场结构化对谈
-- 阅读逐轮对话、查看来源与事实依据
-- 生成可选音频，分享结果
-- 通过内部内容工作台维护问题、人物、来源和节目
+- 阅读编辑部已发布的对谈、来源和固定声明
+- 编辑部登录后新建草稿、改稿，并把状态设为草稿 / 待审核 / 已发布
+- 匿名读者不能改内容，也不能调用创建和生成接口
+
+还没做：真实大模型、TTS / 收听、分享卡片、问题人物来源的后台 CRUD、搜索和收藏。确定性编排器仍只用于内测草稿。
 
 ## 已搭建页面
 
-- `/` 首页
+- `/` 首页（精选只链已发布一席）
 - `/topics` 问题库
 - `/topics/[slug]` 问题详情
 - `/people` 人物库
 - `/people/[slug]` 人物详情
-- `/create` 开一席
-- `/episodes/[id]` 对谈结果
-- `/studio` 内容工作台
+- `/create` 预约开一席（默认关闭生成表单）
+- `/disclaimer` 关于与免责
+- `/episodes/[id]` 已发布对谈；草稿对匿名返回 404
+- `/studio` 内容工作台（需要密码）
 - `/studio/new` 新建编辑草稿
 - `/studio/episodes/[id]` 对谈编辑器与预览
 
-## 当前最小闭环
+## 数据
 
-`/create` 已接入：
+一席存在数据库里，不在进程内存。
 
-1. `POST /api/episodes` 创建一席并校验问题、人物、形式和时长；
-2. `POST /api/episodes/[id]/generate` 调用确定性的演示编排器；
-3. Zod 校验结构化对谈草稿；
-4. `/episodes/[id]` 读取并展示生成结果。
+- 未设置 `DATABASE_URL`：SQLite 文件，默认 `data/episodes.sqlite`。适合单机。多实例不会共享这个文件。
+- `DATABASE_URL=postgres://...` 或 `postgresql://...`：Postgres。表结构由 repository 启动时创建。
+- 种子一席按 id 补齐，不会覆盖已经改过的记录。新建的一席在进程重启后仍可按 id 读取。
+- 问题、人物、来源仍是 `lib/content.ts` 里的代码种子。
 
-当前仓储使用进程内存，仅用于演示和接口联调；重启或多实例部署会丢失新生成的一席。生成结果默认是 `draft`，经过内容审核后才应进入 `published`。
+Repository 接口在 `server/repositories/episode-store.ts`。SQLite 与 Postgres 是两个适配器。
 
-## 内容组合
+## 鉴权
 
-1. 热点问题 × 热点人物
-2. 热点问题 × 经典人物
-3. 经典问题 × 热点人物
-4. 经典问题 × 经典人物
+`STUDIO_PASSWORD` 是编辑部共享密码。未设置时，工作台和全部写接口都会拒绝。
+
+- 浏览器打开 `/studio`：未登录返回 401 和密码页；正确密码写入 HttpOnly Cookie `yixi_studio`
+- API：`Authorization: Bearer <STUDIO_PASSWORD>`，或 `Authorization: Basic`（用户名任意，密码为该值），或请求头 `x-studio-key`
+- 受保护：`/studio/*`、`/api/studio/*`（登录接口除外）、`POST /api/episodes`、`POST /api/episodes/[id]/generate`
+- `ALLOW_PUBLIC_CREATE=true` 时，匿名请求才能创建和生成。结果仍是草稿，公开页不会展示
 
 ## 本地运行
 
+需要 Node.js 22.13 或更高。
+
 ```bash
-npm install
+cp .env.example .env.local
+# 编辑 STUDIO_PASSWORD
+npm ci
 npm run dev
 ```
 
-生产检查：
+生产检查与启动：
 
 ```bash
-npm run build
 npm run lint
+npm run build
+npm start
 ```
 
-## 当前状态
+本地验收：
 
-第一条前后端 Agent 纵切片和内容工作台 P0 已搭建：前端选择、API 创建、确定性 Agent 编排、结构化校验、结果页展示，以及手工编辑草稿、逐轮来源标记和状态切换均已接通。工作台当前使用进程内存，适合先录入第一期真实内容验证产品形态；下一步接入持久化数据库、来源快照、审核记录和真实模型。
+1. 不带密码打开 `/studio`，状态码 401；`POST /api/episodes` 同样 401。
+2. 首页能打开种子里已发布的一席；用密码新建的草稿，匿名打开 `/episodes/<id>` 为 404。
+3. 在工作台把草稿改为已发布后，重启进程，同一 id 仍可公开阅读。
+4. `/create` 默认是预约说明，不出现可提交的生成表单。
 
 ## 目录约定
 
 - `app/`：App Router 页面与 API Route Handlers
 - `components/`：可复用界面组件
-- `lib/`：内容模型、种子数据和共享查找函数
+- `lib/`：内容模型、种子数据、声明文案、工作台鉴权
 - `server/contracts.ts`：请求与生成结果的 Zod 契约
-- `server/agents/`：Agent 编排器
+- `server/agents/`：确定性演示编排器
 - `server/services/`：业务服务
-- `server/repositories/`：内容仓储适配器
+- `server/repositories/`：一席仓储；`episode-store.ts` 是可替换的存储接口
 - `docs/`：产品规格、内容模型和决策记录
+- `proxy.ts`：工作台与写接口门禁
 
 ## 名称
 

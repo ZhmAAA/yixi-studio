@@ -1,13 +1,14 @@
 import Link from "next/link";
 import { ContentCard } from "@/components/content-card";
 import { PersonCard } from "@/components/person-card";
-import { episodes, people, topics } from "@/lib/content";
+import { people, topics } from "@/lib/content";
+import { listPublishedEpisodes } from "@/server/repositories/episode-repository";
 
-export default function HomePage() {
+export default async function HomePage() {
   const hotTopics = topics.filter((topic) => topic.type === "hot");
   const classicTopics = topics.filter((topic) => topic.type === "classic");
   const featuredPeople = people.slice(0, 3);
-  const sampleEpisode = episodes[0];
+  const featured = (await listPublishedEpisodes())[0];
 
   return (
     <>
@@ -18,13 +19,13 @@ export default function HomePage() {
             <h1>今天，听谁谈什么？</h1>
             <p className="lede">从一个问题出发，听不同的人把话说完。热点与经典人物，围绕热点与经典问题，展开一席有来源的对谈。</p>
             <div className="hero-actions">
-              <Link href="/create" className="button button-dark">开一席</Link>
-              <Link href={`/episodes/${sampleEpisode.id}`} className="button button-light">先听一席</Link>
+              {featured ? <Link href={`/episodes/${featured.id}`} className="button button-dark">阅读这一席</Link> : null}
+              <Link href="/topics" className="button button-light">浏览问题</Link>
             </div>
           </div>
           <aside className="hero-note">
             <strong>一席话是什么？</strong>
-            <p>我们把公开资料、人物观点与编辑策划放在一起，生成一场可阅读、可收听、可分享的 AI 对谈。</p>
+            <p>我们把公开资料、人物观点与编辑策划放在一起，做成一场可阅读、有来源的 AI 对谈。首发由编辑部审核后发布，这一版没有音频。</p>
           </aside>
         </div>
       </section>
@@ -61,13 +62,17 @@ export default function HomePage() {
 
       <section className="section">
         <div className="container">
-          <div className="episode-banner">
-            <div>
-              <strong>{sampleEpisode.title}</strong>
-              <p>{sampleEpisode.combinationType} · {sampleEpisode.duration}</p>
+          {featured ? (
+            <div className="episode-banner">
+              <div>
+                <strong>{featured.title}</strong>
+                <p>{featured.combinationType} · {featured.duration} · 已发布</p>
+              </div>
+              <Link href={`/episodes/${featured.id}`} className="button button-light">打开这席</Link>
             </div>
-            <Link href={`/episodes/${sampleEpisode.id}`} className="button button-light">打开这席</Link>
-          </div>
+          ) : (
+            <div className="empty-state">编辑部正在准备第一席。</div>
+          )}
         </div>
       </section>
     </>
