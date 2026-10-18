@@ -29,7 +29,7 @@ export default async function EpisodePage({ params }: { params: Promise<{ id: st
   const authorized = await isRequestAuthorized();
   if (!episode || (episode.status !== "published" && !authorized)) notFound();
   const episodePeople = getPeopleByIds(episode.personIds);
-  const episodeSources = getSourcesByIds(episode.turns.flatMap((turn) => turn.citationIds));
+  const episodeSources = getSourcesByIds([...new Set(episode.turns.flatMap((turn) => turn.citationIds))]);
   const extraDisclosure = episode.disclosure.trim() && episode.disclosure.trim() !== FIXED_DISCLOSURE ? episode.disclosure : "";
 
   return (
