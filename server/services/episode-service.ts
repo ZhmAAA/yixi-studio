@@ -22,7 +22,7 @@ export function generateEpisodeService(id: string) {
 
     return updateEpisodeRecord(id, {
       ...draft,
-      status: "published",
+      status: "draft",
       error: undefined
     });
   } catch (error) {
