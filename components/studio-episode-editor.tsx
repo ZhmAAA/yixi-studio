@@ -63,9 +63,16 @@ export default function StudioEpisodeEditor({ initialEpisode }: { initialEpisode
     }));
   }
 
-  async function saveEpisode() {
+  const checks = [
+    { ok: episode.turns.every((turn) => turn.text.trim()), label: "每轮正文非空" },
+    { ok: episode.turns.every((turn) => turn.provenance === "合成演绎" || turn.citationIds.length > 0), label: "观点 / 事实轮有来源" },
+    { ok: episode.disclosure.trim().length > 0 && episode.disclosure.includes("演绎"), label: "声明含演绎边界" }
+  ];
+
+  async function saveEpisode(statusOverride?: EpisodeStatus) {
+    const nextStatus = statusOverride ?? episode.status;
     if (!episode.disclosure.trim()) {
-      setMessage(episode.status === "published" ? "发布前请填写声明，不能为空。" : "声明不能为空。");
+      setMessage(nextStatus === "published" ? "发布前请填写声明，不能为空。" : "声明不能为空。");
       return;
     }
     setIsSaving(true);
@@ -79,14 +86,14 @@ export default function StudioEpisodeEditor({ initialEpisode }: { initialEpisode
           question: episode.question,
           combinationType: episode.combinationType,
           disclosure: episode.disclosure,
-          status: episode.status === "published" ? "published" : episode.status === "review" ? "review" : "draft",
+          status: nextStatus === "published" ? "published" : nextStatus === "review" ? "review" : "draft",
           turns: episode.turns
         })
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error ?? "保存失败");
       setEpisode(payload.data);
-      setMessage("已保存。发布前请逐轮检查来源和演绎标记。");
+      setMessage(nextStatus === "review" ? "已提交审核。发布前请再通读合成演绎句。" : "已保存。发布前请逐轮检查来源和演绎标记。");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "保存失败");
     } finally {
@@ -98,28 +105,31 @@ export default function StudioEpisodeEditor({ initialEpisode }: { initialEpisode
     <div className="studio-editor">
       <div className="studio-toolbar">
         <div>
-          <span className="kicker">Episode editor</span>
+          <span className="kicker">对谈编辑</span>
           <h1>编辑这一席</h1>
         </div>
         <div className="hero-actions">
-          <Link href={`/episodes/${episode.id}`} className="button button-light">{episode.status === "published" ? "预览公开页" : "预览草稿"}</Link>
-          <button className="button button-dark" type="button" onClick={saveEpisode} disabled={isSaving}>
-            {isSaving ? "保存中…" : "保存内容"}
+          <Link href={`/episodes/${episode.id}`} className="button button-ghost">{episode.status === "published" ? "预览公开页" : "预览"}</Link>
+          <button className="button button-light" type="button" onClick={() => saveEpisode()} disabled={isSaving}>
+            {isSaving ? "保存中…" : "保存"}
           </button>
+          {episode.status === "published" ? null : (
+            <button className="button button-dark" type="button" onClick={() => saveEpisode("review")} disabled={isSaving}>提交审核</button>
+          )}
         </div>
       </div>
 
       <div className="studio-editor-layout">
         <main className="studio-editor-main">
           <section className="card editor-section">
-            <div className="section-header"><div><span className="kicker">Brief</span><h2>这一席讲什么</h2></div><span className="tag">{episode.duration}</span></div>
+            <div className="section-header"><div><h2>这一席讲什么</h2></div><span className="tag">{episode.duration}</span></div>
             <label className="editor-field"><span>标题</span><input className="input" value={episode.title} onChange={(event) => updateField("title", event.target.value)} /></label>
             <label className="editor-field"><span>核心问题</span><textarea className="textarea" value={episode.question} onChange={(event) => updateField("question", event.target.value)} /></label>
             <label className="editor-field"><span>内容组合</span><input className="input" value={episode.combinationType} onChange={(event) => updateField("combinationType", event.target.value)} /></label>
           </section>
 
           <section className="card editor-section">
-            <div className="section-header"><div><span className="kicker">Dialogue</span><h2>把话说完</h2></div><button className="button button-light" type="button" onClick={addTurn}>+ 增加一轮</button></div>
+            <div className="section-header"><div><h2>把话说完</h2></div><button className="button button-ghost" type="button" onClick={addTurn}>+ 增加一轮</button></div>
             <div className="turn-editor-list">
               {episode.turns.map((turn, index) => (
                 <div className="turn-editor" key={turn.sequence}>
@@ -140,8 +150,9 @@ export default function StudioEpisodeEditor({ initialEpisode }: { initialEpisode
           </section>
 
           <section className="card editor-section">
-            <div className="section-header"><div><span className="kicker">Disclosure</span><h2>发布声明</h2></div></div>
+            <div className="section-header"><div><h2>发布声明</h2></div></div>
             <textarea className="textarea" value={episode.disclosure} onChange={(event) => updateField("disclosure", event.target.value)} />
+            <p className="hint">不可保存为空。可微调措辞，须保留 AI 演绎边界。</p>
           </section>
         </main>
 
@@ -154,6 +165,15 @@ export default function StudioEpisodeEditor({ initialEpisode }: { initialEpisode
               <option value="published">已发布</option>
             </select>
             {message ? <p className="save-message">{message}</p> : null}
+          </section>
+          <section className="card">
+            <h3>发布检查</h3>
+            <ul className="check">
+              {checks.map((item) => (
+                <li key={item.label}><span className={item.ok ? "ok" : "bad"}>{item.ok ? "✓" : "!"}</span><span>{item.label}</span></li>
+              ))}
+              <li><span className="bad">!</span><span>发布前请再通读合成演绎句</span></li>
+            </ul>
           </section>
           <section className="card">
             <h3>入席人物</h3>
