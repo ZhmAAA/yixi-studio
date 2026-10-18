@@ -1,14 +1,29 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getPeopleByIds, getSourcesByIds } from "@/lib/content";
+import { FIXED_DISCLOSURE } from "@/lib/disclaimer";
+import { isPublicCreateEnabled } from "@/lib/studio-auth";
+import { isRequestAuthorized } from "@/lib/studio-request-auth";
 import { getEpisodeRecord } from "@/server/repositories/episode-repository";
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params;
+  const episode = await getEpisodeRecord(id);
+  if (!episode || episode.status !== "published") {
+    return { robots: { index: false, follow: false } };
+  }
+  return { title: `${episode.title} | 一席话` };
+}
 
 export default async function EpisodePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const episode = getEpisodeRecord(id);
-  if (!episode) notFound();
+  const episode = await getEpisodeRecord(id);
+  const authorized = await isRequestAuthorized();
+  if (!episode || (episode.status !== "published" && !authorized)) notFound();
   const episodePeople = getPeopleByIds(episode.personIds);
   const episodeSources = getSourcesByIds(episode.turns.flatMap((turn) => turn.citationIds));
+  const extraDisclosure = episode.disclosure.trim() && episode.disclosure.trim() !== FIXED_DISCLOSURE ? episode.disclosure : "";
 
   return (
     <div className="container">
@@ -21,9 +36,10 @@ export default async function EpisodePage({ params }: { params: Promise<{ id: st
           <span className="tag">{episode.format}</span>
           <span className="tag">{episode.duration}</span>
         </div>
+        {episode.status !== "published" ? <div className="notice">这一席尚未发布，只有登录后的编辑部能预览。</div> : null}
         <div className="hero-actions">
-          <Link href="/create" className="button button-dark">从这里再开一席</Link>
-          <button className="button button-light" type="button">分享</button>
+          <Link href="/topics" className="button button-dark">浏览问题</Link>
+          <Link href="/create" className="button button-light">{isPublicCreateEnabled() ? "再开一席" : "预约开一席"}</Link>
         </div>
       </section>
       <div className="detail-layout">
@@ -39,12 +55,16 @@ export default async function EpisodePage({ params }: { params: Promise<{ id: st
               return <div className="turn" key={turn.sequence}><div className="turn-avatar">{person?.shortName}</div><div className="turn-body"><strong>{person?.displayName}</strong><p>{turn.text}</p><span className="provenance">{turn.provenance} · 已关联来源 {turn.citationIds.length} 条</span></div></div>;
             })}</div>
           </section>
-          <div className="notice">{episode.disclosure}</div>
+          <div className="notice">{FIXED_DISCLOSURE}{extraDisclosure ? ` ${extraDisclosure}` : ""}</div>
         </div>
         <aside className="detail-aside">
           <section className="card">
             <h3>本席资料</h3>
-            <ul className="source-list">{episodeSources.map((source) => <li key={source.id}><strong>{source.title}</strong><span className="muted">{source.publisher} · {source.evidenceLevel}</span><a href={source.url} target="_blank" rel="noreferrer">查看来源</a></li>)}</ul>
+            {episodeSources.length ? (
+              <ul className="source-list">{episodeSources.map((source) => <li key={source.id}><strong>{source.title}</strong><span className="muted">{source.publisher} · {source.evidenceLevel}</span><a href={source.url} target="_blank" rel="noreferrer">查看来源</a></li>)}</ul>
+            ) : (
+              <p>本席暂无外链来源，请以声明为准。</p>
+            )}
           </section>
         </aside>
       </div>

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { people, sources, type Turn } from "@/lib/content";
-import type { EpisodeRecord, EpisodeStatus } from "@/server/repositories/episode-repository";
+import type { EpisodeRecord, EpisodeStatus } from "@/server/repositories/episode-types";
 
 type EditableEpisode = Pick<EpisodeRecord, "id" | "title" | "question" | "combinationType" | "disclosure" | "personIds" | "format" | "duration" | "turns" | "status">;
 
@@ -64,6 +64,10 @@ export default function StudioEpisodeEditor({ initialEpisode }: { initialEpisode
   }
 
   async function saveEpisode() {
+    if (!episode.disclosure.trim()) {
+      setMessage(episode.status === "published" ? "发布前请填写声明，不能为空。" : "声明不能为空。");
+      return;
+    }
     setIsSaving(true);
     setMessage("");
     try {
@@ -98,7 +102,7 @@ export default function StudioEpisodeEditor({ initialEpisode }: { initialEpisode
           <h1>编辑这一席</h1>
         </div>
         <div className="hero-actions">
-          <Link href={`/episodes/${episode.id}`} className="button button-light">预览公开页</Link>
+          <Link href={`/episodes/${episode.id}`} className="button button-light">{episode.status === "published" ? "预览公开页" : "预览草稿"}</Link>
           <button className="button button-dark" type="button" onClick={saveEpisode} disabled={isSaving}>
             {isSaving ? "保存中…" : "保存内容"}
           </button>

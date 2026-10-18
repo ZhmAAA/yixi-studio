@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { SiteHeader } from "@/components/site-header";
+import { FIXED_DISCLOSURE } from "@/lib/disclaimer";
 import "./globals.css";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "一席话 | Hear Them Out",
@@ -16,7 +20,8 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <footer className="site-footer">
           <div className="container footer-inner">
             <span>一席话 · Hear Them Out</span>
-            <span>One question. Many voices.</span>
+            <Link href="/disclaimer">关于与免责</Link>
+            <p className="footer-disclosure">{FIXED_DISCLOSURE}</p>
           </div>
         </footer>
       </body>

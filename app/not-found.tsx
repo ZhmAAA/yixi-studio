@@ -5,8 +5,8 @@ export default function NotFound() {
     <div className="container">
       <section className="page-intro">
         <span className="kicker">Not found</span>
-        <h1>这席还没准备好。</h1>
-        <p>换一个问题或人物试试，我们正在继续整理更多内容。</p>
+        <h1>没有找到这一页。</h1>
+        <p>它可能还在编辑部，或已经下线。</p>
         <Link href="/" className="button button-dark">回到首页</Link>
       </section>
     </div>

@@ -1,6 +1,11 @@
 import Link from "next/link";
+import { isPublicCreateEnabled } from "@/lib/studio-auth";
+import { listPublishedEpisodes } from "@/server/repositories/episode-repository";
 
-export function SiteHeader() {
+export async function SiteHeader() {
+  const createEnabled = isPublicCreateEnabled();
+  const featured = (await listPublishedEpisodes())[0];
+
   return (
     <header className="site-header">
       <div className="container header-inner">
@@ -14,10 +19,10 @@ export function SiteHeader() {
         <nav className="main-nav" aria-label="主导航">
           <Link href="/topics">问题</Link>
           <Link href="/people">人物</Link>
-          <Link href="/episodes/ai-work-judgment">先听一席</Link>
+          {featured ? <Link href={`/episodes/${featured.id}`}>精选一席</Link> : null}
         </nav>
-        <Link href="/create" className="button button-dark header-cta">
-          开一席
+        <Link href="/create" className={createEnabled ? "button button-dark header-cta" : "button button-light header-cta"}>
+          {createEnabled ? "开一席" : "预约开一席"}
         </Link>
       </div>
     </header>

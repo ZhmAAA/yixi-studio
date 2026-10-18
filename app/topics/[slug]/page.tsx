@@ -16,7 +16,7 @@ export default async function TopicDetailPage({ params }: { params: Promise<{ sl
         <span className={topic.type === "hot" ? "eyebrow hot" : "eyebrow"}>{topic.type === "hot" ? "热点问题" : "经典问题"}</span>
         <h1>{topic.title}</h1>
         <p>{topic.summary}</p>
-        <Link href="/create" className="button button-dark">用这个问题开一席</Link>
+        <Link href="/create" className="button button-light">预约开一席</Link>
       </section>
       <div className="detail-layout">
         <div className="detail-main">

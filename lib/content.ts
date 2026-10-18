@@ -1,3 +1,5 @@
+import { FIXED_DISCLOSURE } from "@/lib/disclaimer";
+
 export type ContentType = "hot" | "classic";
 
 export type Source = {
@@ -193,7 +195,7 @@ export const episodes: Episode[] = [
     format: "观点对谈",
     duration: "约 4 分钟",
     combinationType: "热点问题 × 经典人物",
-    disclosure: "本内容基于公开资料的 AI 演绎，非本人发言，不代表本人观点。",
+    disclosure: FIXED_DISCLOSURE,
     turns: [
       {
         sequence: 1,

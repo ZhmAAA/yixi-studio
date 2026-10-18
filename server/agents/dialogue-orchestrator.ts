@@ -1,4 +1,5 @@
 import { getPeopleByIds, getTopicById } from "@/lib/content";
+import { FIXED_DISCLOSURE } from "@/lib/disclaimer";
 import { EpisodeCreateInputSchema, EpisodeDraftSchema, type EpisodeCreateInput, type EpisodeDraft } from "@/server/contracts";
 
 export function generateDialogueDraft(rawInput: EpisodeCreateInput): EpisodeDraft {
@@ -24,7 +25,7 @@ export function generateDialogueDraft(rawInput: EpisodeCreateInput): EpisodeDraf
     format: input.format,
     duration: input.duration,
     combinationType: `${topic.type === "hot" ? "热点问题" : "经典问题"} × ${people.map((person) => person.type === "hot" ? "热点人物" : "经典人物").join(" + ")}`,
-    disclosure: "本内容基于公开资料的 AI 演绎，非本人发言，不代表本人观点。",
+    disclosure: FIXED_DISCLOSURE,
     turns: [
       {
         sequence: 1,

@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { episodes, people, sources, topics } from "@/lib/content";
+import { StudioLogout } from "@/components/studio-logout";
+import { people, sources, topics } from "@/lib/content";
 import { listEpisodeRecords } from "@/server/repositories/episode-repository";
 
 const statusLabel = {
@@ -11,14 +12,14 @@ const statusLabel = {
   failed: "生成失败"
 } as const;
 
-export default function StudioPage() {
+export default async function StudioPage() {
+  const records = await listEpisodeRecords();
   const stats = [
     ["问题", topics.length],
     ["人物", people.length],
     ["来源", sources.length],
-    ["对谈", episodes.length]
+    ["对谈", records.length]
   ];
-  const records = listEpisodeRecords();
 
   return (
     <div className="container">
@@ -28,7 +29,10 @@ export default function StudioPage() {
           <h1>内容工作台</h1>
           <p>先把问题、人物、来源和对谈稿编辑成一席，再交给审核和发布。</p>
         </div>
-        <Link href="/studio/new" className="button button-dark">新建一席</Link>
+        <div className="hero-actions">
+          <StudioLogout />
+          <Link href="/studio/new" className="button button-dark">新建一席</Link>
+        </div>
       </section>
 
       <section className="grid three">
@@ -41,7 +45,7 @@ export default function StudioPage() {
             <span className="kicker">Editorial queue</span>
             <h2>对谈内容</h2>
           </div>
-          <p>第一期先支持手工录入和逐轮审核，模型生成只作为草稿建议。</p>
+          <p>问题、人物和来源仍来自代码种子。对谈数是已保存的记录。模型生成只作为草稿建议。</p>
         </div>
         <div className="studio-list">
           {records.map((episode) => episode ? (
