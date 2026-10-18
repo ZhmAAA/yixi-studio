@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requestErrorMessage } from "@/lib/request-error";
 import { isStudioAuthorized } from "@/lib/studio-auth";
 import { StudioEpisodeUpdateSchema } from "@/server/contracts";
 import { getEpisodeRecord, updateEpisodeRecord } from "@/server/repositories/episode-repository";
@@ -27,7 +28,6 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const episode = await updateEpisodeRecord(id, input);
     return NextResponse.json({ data: episode });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "保存失败";
-    return NextResponse.json({ error: message }, { status: 400 });
+    return NextResponse.json({ error: requestErrorMessage(error, "保存失败") }, { status: 400 });
   }
 }

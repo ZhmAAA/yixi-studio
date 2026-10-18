@@ -35,7 +35,9 @@ export function openSqliteEpisodeStore(filePath?: string): EpisodeStore {
   const insertIfAbsentStatement = database.prepare(INSERT_IF_ABSENT);
   const updateStatement = database.prepare(UPDATE);
 
-  return {
+  // DatabaseSync 被回收后，已准备的语句会变成 finalized。把连接挂在返回对象上。
+  const store: EpisodeStore & { database: DatabaseSync } = {
+    database,
     async get(id) {
       const row = getStatement.get(id) as EpisodeRow | undefined;
       return row ? rowToRecord(row) : undefined;
@@ -53,4 +55,5 @@ export function openSqliteEpisodeStore(filePath?: string): EpisodeStore {
       updateStatement.run(...updateParams(record));
     }
   };
+  return store;
 }

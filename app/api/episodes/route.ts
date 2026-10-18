@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requestErrorMessage } from "@/lib/request-error";
 import { isPublicCreateEnabled, isStudioAuthorized } from "@/lib/studio-auth";
 import { EpisodeCreateInputSchema } from "@/server/contracts";
 import { createEpisodeService } from "@/server/services/episode-service";
@@ -15,7 +16,6 @@ export async function POST(request: Request) {
     const episode = await createEpisodeService(input);
     return NextResponse.json({ data: episode }, { status: 201 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "无法创建一席";
-    return NextResponse.json({ error: message }, { status: 400 });
+    return NextResponse.json({ error: requestErrorMessage(error, "无法创建一席") }, { status: 400 });
   }
 }
