@@ -52,11 +52,11 @@ export default function CreateEpisodeForm() {
   return (
     <div className="container">
       <section className="page-intro">
-        <span className="kicker">Create a conversation</span>
+        <span className="eyebrow">开一席</span>
         <h1>开一席</h1>
-        <p>选一个问题，再请两位人物入席。生成结果先作为草稿，编辑部发布后才会出现在公开页。</p>
+        <p className="lede">选一个问题，再请两位人物入席。生成结果先作为草稿，编辑部发布后才会出现在公开页。这一版没有音频。</p>
       </section>
-      <section className="card form-card">
+      <section className="form-card">
         <div className="form-step">
           <h3><span className="step-number">1</span>选一个问题</h3>
           <select className="select" value={topicId} onChange={(event) => setTopicId(event.target.value)}>

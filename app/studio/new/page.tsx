@@ -39,7 +39,7 @@ export default function NewStudioEpisodePage() {
   return (
     <div className="container">
       <section className="page-intro">
-        <span className="kicker">New editorial draft</span>
+        <span className="kicker">新建</span>
         <h1>新建一席</h1>
         <p>先确定问题和入席人物，再进入工作台手工录入对谈。这里不会自动发布内容。</p>
       </section>

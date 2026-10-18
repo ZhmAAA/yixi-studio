@@ -9,7 +9,7 @@ export default async function CreateSubmittedPage({ searchParams }: { searchPara
   return (
     <div className="container">
       <section className="page-intro">
-        <span className="kicker">Draft saved</span>
+        <span className="kicker">草稿</span>
         <h1>草稿已留下</h1>
         <p>这一席还不会公开。编辑部审核并发布之后，才会出现在首页和阅读页。</p>
         <div className="hero-actions">

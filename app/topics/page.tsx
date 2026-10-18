@@ -1,16 +1,21 @@
 import { ContentCard } from "@/components/content-card";
 import { topics } from "@/lib/content";
+import { listPublishedEpisodes } from "@/server/repositories/episode-repository";
 
-export default function TopicsPage() {
+export default async function TopicsPage() {
+  const published = await listPublishedEpisodes();
+  const counts = new Map<string, number>();
+  for (const episode of published) counts.set(episode.topicId, (counts.get(episode.topicId) ?? 0) + 1);
+
   return (
     <div className="container">
       <section className="page-intro">
-        <span className="kicker">Questions</span>
+        <span className="kicker">问题</span>
         <h1>你想听什么问题？</h1>
         <p>一个好问题，值得被不同的人认真回答。先从热点开始，也可以回到那些一直没有过期的经典问题。</p>
       </section>
       <section className="section">
-        <div className="grid">{topics.map((topic) => <ContentCard topic={topic} key={topic.id} />)}</div>
+        <div className="grid">{topics.map((topic) => <ContentCard topic={topic} publishedCount={counts.get(topic.id) ?? 0} key={topic.id} />)}</div>
       </section>
     </div>
   );

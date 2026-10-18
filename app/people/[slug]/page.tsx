@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getPerson, getSourcesByIds, topics } from "@/lib/content";
 import { ContentCard } from "@/components/content-card";
+import { getPerson, getSourcesByIds, topics } from "@/lib/content";
+import { isPublicCreateEnabled } from "@/lib/studio-auth";
+import { listPublishedEpisodes } from "@/server/repositories/episode-repository";
 
 export default async function PersonDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -9,6 +11,9 @@ export default async function PersonDetailPage({ params }: { params: Promise<{ s
   if (!person) notFound();
   const suitableTopics = topics.filter((topic) => person.suitableQuestionIds.includes(topic.id));
   const linkedSources = getSourcesByIds(person.sourceIds);
+  const published = await listPublishedEpisodes();
+  const counts = new Map<string, number>();
+  for (const episode of published) counts.set(episode.topicId, (counts.get(episode.topicId) ?? 0) + 1);
 
   return (
     <div className="container">
@@ -16,19 +21,21 @@ export default async function PersonDetailPage({ params }: { params: Promise<{ s
         <span className={person.type === "hot" ? "eyebrow hot" : "eyebrow"}>{person.type === "hot" ? "热点人物" : "经典人物"}</span>
         <h1>{person.displayName}</h1>
         <p>{person.role} · {person.era}</p>
-        <Link href="/create" className="button button-light">预约开一席</Link>
+        <div className="hero-actions">
+          <Link href="/create" className="button button-ghost">{isPublicCreateEnabled() ? "请 TA 入席" : "预约开一席"}</Link>
+        </div>
       </section>
       <div className="detail-layout">
         <div className="detail-main">
           <section className="card">
-            <h2>为什么邀请 TA？</h2>
-            <p>{person.bio}</p>
-            <p>{person.viewpointSummary}</p>
+            <h2>为什么邀请 TA</h2>
+            <p className="prose">{person.bio}</p>
+            <p className="prose">{person.viewpointSummary}</p>
             <div className="tag-row">{person.keywords.map((keyword) => <span className="tag" key={keyword}>{keyword}</span>)}</div>
           </section>
           <section>
             <div className="section-header"><h2>适合聊的问题</h2></div>
-            <div className="grid">{suitableTopics.map((topic) => <ContentCard topic={topic} key={topic.id} />)}</div>
+            <div className="grid">{suitableTopics.map((topic) => <ContentCard topic={topic} publishedCount={counts.get(topic.id) ?? 0} key={topic.id} />)}</div>
           </section>
         </div>
         <aside className="detail-aside">
