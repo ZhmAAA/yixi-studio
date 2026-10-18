@@ -1,7 +1,7 @@
 import { episodes, getTopicById, type Episode } from "@/lib/content";
 import type { EpisodeCreateInput } from "@/server/contracts";
 
-export type EpisodeStatus = "pending" | "generating" | "draft" | "published" | "failed";
+export type EpisodeStatus = "pending" | "generating" | "draft" | "review" | "published" | "failed";
 
 export type EpisodeRecord = Episode & {
   status: EpisodeStatus;
