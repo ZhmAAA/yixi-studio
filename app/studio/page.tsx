@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { StudioLogout } from "@/components/studio-logout";
 import { StudioQueue } from "@/components/studio-queue";
 import { people, topics } from "@/lib/content";
@@ -19,7 +20,10 @@ export default async function StudioPage() {
           <h1>编辑部队列</h1>
           <p className="lede">把问题、人物、来源与对谈稿整理成一席，再交给审核与发布。问题与人物仍来自种子库，模型生成只作为草稿建议。</p>
         </div>
-        <StudioLogout />
+        <div className="studio-heading-actions">
+          <Link className="button button-light" href="/studio/podcast">播客编排</Link>
+          <StudioLogout />
+        </div>
       </section>
 
       <section className="stats">

@@ -24,6 +24,7 @@ export function SiteChrome({ featuredHref, createEnabled }: { featuredHref?: str
 
   const studioItems: NavItem[] = [
     { href: "/studio", label: "对谈队列", short: "队列", active: pathname === "/studio" },
+    { href: "/studio/podcast", label: "播客编排", short: "编排", active: pathname.startsWith("/studio/podcast") },
     { href: "/studio/new", label: "新建一席", short: "新建", active: pathname.startsWith("/studio/new") },
     { href: "/", label: "公开站", short: "公开", active: false }
   ];
