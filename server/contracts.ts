@@ -1,5 +1,13 @@
 import { z } from "zod";
 
+export const EpisodeTurnSchema = z.object({
+  sequence: z.number().int().positive(),
+  speakerId: z.string().min(1),
+  text: z.string().max(2000),
+  provenance: z.enum(["观点摘要", "事实背景", "合成演绎"]),
+  citationIds: z.array(z.string())
+});
+
 export const EpisodeCreateInputSchema = z.object({
   topicId: z.string().min(1),
   personIds: z.array(z.string().min(1)).min(2).max(3).refine(
@@ -21,13 +29,18 @@ export const EpisodeDraftSchema = z.object({
   duration: z.string().min(1),
   combinationType: z.string().min(1),
   disclosure: z.string().min(1),
-  turns: z.array(z.object({
-    sequence: z.number().int().positive(),
-    speakerId: z.string().min(1),
-    text: z.string().min(1),
-    provenance: z.enum(["观点摘要", "事实背景", "合成演绎"]),
-    citationIds: z.array(z.string())
-  })).min(1)
+  turns: z.array(EpisodeTurnSchema).min(1)
 });
 
 export type EpisodeDraft = z.infer<typeof EpisodeDraftSchema>;
+
+export const StudioEpisodeUpdateSchema = z.object({
+  title: z.string().trim().min(1).max(120),
+  question: z.string().trim().min(1).max(240),
+  combinationType: z.string().trim().min(1).max(100),
+  disclosure: z.string().trim().min(1).max(300),
+  turns: z.array(EpisodeTurnSchema).max(20),
+  status: z.enum(["draft", "review", "published"])
+});
+
+export type StudioEpisodeUpdate = z.infer<typeof StudioEpisodeUpdateSchema>;
