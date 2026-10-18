@@ -51,6 +51,10 @@ export function getEpisodeRecord(id: string) {
   return store.get(id);
 }
 
+export function listEpisodeRecords() {
+  return Array.from(store.values()).sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+}
+
 export function updateEpisodeRecord(id: string, patch: Partial<EpisodeRecord>) {
   const current = store.get(id);
   if (!current) return undefined;
