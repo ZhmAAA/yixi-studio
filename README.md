@@ -17,8 +17,9 @@
 - Next.js 16 App Router
 - TypeScript
 - React 19
-- 前端优先的本地种子数据
-- 无第三方 UI 依赖，先用可替换的 CSS 视觉系统
+- Zod 内容与请求校验
+- 前端、服务层、Agent 编排器和仓储层的模块化单体结构
+- GitHub Actions 自动执行 lint 与 build
 
 ## 第一版目标
 
@@ -39,6 +40,17 @@
 - `/create` 开一席
 - `/episodes/[id]` 对谈结果
 - `/studio` 内容工作台占位页
+
+## 当前最小闭环
+
+`/create` 已接入：
+
+1. `POST /api/episodes` 创建一席并校验问题、人物、形式和时长；
+2. `POST /api/episodes/[id]/generate` 调用确定性的演示编排器；
+3. Zod 校验结构化对谈草稿；
+4. `/episodes/[id]` 读取并展示生成结果。
+
+当前仓储使用进程内存，仅用于演示和接口联调；重启或多实例部署会丢失新生成的一席。生成结果默认是 `draft`，经过内容审核后才应进入 `published`。
 
 ## 内容组合
 
@@ -63,13 +75,17 @@ npm run lint
 
 ## 当前状态
 
-第一版前端演示链路已搭建，内容来自 `lib/content.ts` 的种子数据。下一步接入真实内容工作台、来源快照、生成服务和登录权限。
+第一条前后端 Agent 纵切片已搭建：前端选择、API 创建、确定性 Agent 编排、结构化校验和结果页展示均已接通。下一步接入真实模型、持久化数据库、来源快照和内容工作台权限。
 
 ## 目录约定
 
-- `app/`：App Router 页面
+- `app/`：App Router 页面与 API Route Handlers
 - `components/`：可复用界面组件
-- `lib/`：内容模型、种子数据和未来的数据访问层
+- `lib/`：内容模型、种子数据和共享查找函数
+- `server/contracts.ts`：请求与生成结果的 Zod 契约
+- `server/agents/`：Agent 编排器
+- `server/services/`：业务服务
+- `server/repositories/`：内容仓储适配器
 - `docs/`：产品规格、内容模型和决策记录
 
 ## 名称
