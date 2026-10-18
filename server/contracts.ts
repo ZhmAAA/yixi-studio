@@ -2,7 +2,10 @@ import { z } from "zod";
 
 export const EpisodeCreateInputSchema = z.object({
   topicId: z.string().min(1),
-  personIds: z.array(z.string().min(1)).min(2).max(3),
+  personIds: z.array(z.string().min(1)).min(2).max(3).refine(
+    (ids) => new Set(ids).size === ids.length,
+    "入席人物不能重复"
+  ),
   format: z.literal("观点对谈"),
   duration: z.enum(["约 3 分钟", "约 4 分钟", "约 5 分钟"])
 });
