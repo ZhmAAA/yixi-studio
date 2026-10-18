@@ -1,4 +1,4 @@
-import { episodes, getTopic, type Episode } from "@/lib/content";
+import { episodes, getTopicById, type Episode } from "@/lib/content";
 import type { EpisodeCreateInput } from "@/server/contracts";
 
 export type EpisodeStatus = "pending" | "generating" | "published" | "failed";
@@ -24,6 +24,8 @@ const store = new Map<string, EpisodeRecord>(
 
 export function createEpisode(input: EpisodeCreateInput): EpisodeRecord {
   const topic = getTopicById(input.topicId);
+  if (!topic) throw new Error("找不到对应问题");
+
   const id = `episode-${Date.now().toString(36)}`;
   const now = new Date().toISOString();
   const record: EpisodeRecord = {
@@ -55,15 +57,4 @@ export function updateEpisodeRecord(id: string, patch: Partial<EpisodeRecord>) {
   const updated = { ...current, ...patch, updatedAt: new Date().toISOString() };
   store.set(id, updated);
   return updated;
-}
-
-function getTopicById(id: string) {
-  const topic = getTopic(id) ?? undefined;
-  if (topic) return topic;
-  const topicFromId = episodes.find((episode) => episode.topicId === id);
-  if (topicFromId) {
-    const fallback = getTopic(topicFromId.topicId);
-    if (fallback) return fallback;
-  }
-  throw new Error("找不到对应问题");
 }
