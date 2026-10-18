@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getEpisode, getPeopleByIds, getSourcesByIds } from "@/lib/content";
+import { getPeopleByIds, getSourcesByIds } from "@/lib/content";
+import { getEpisodeRecord } from "@/server/repositories/episode-repository";
 
 export default async function EpisodePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const episode = getEpisode(id);
+  const episode = getEpisodeRecord(id);
   if (!episode) notFound();
   const episodePeople = getPeopleByIds(episode.personIds);
   const episodeSources = getSourcesByIds(episode.turns.flatMap((turn) => turn.citationIds));
