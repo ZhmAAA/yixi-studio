@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { episodes, people, sources, topics } from "@/lib/content";
-import { getEpisodeRecord } from "@/server/repositories/episode-repository";
+import { listEpisodeRecords } from "@/server/repositories/episode-repository";
 
 const statusLabel = {
   draft: "草稿",
@@ -18,7 +18,7 @@ export default function StudioPage() {
     ["来源", sources.length],
     ["对谈", episodes.length]
   ];
-  const records = episodes.map((episode) => getEpisodeRecord(episode.id)).filter(Boolean);
+  const records = listEpisodeRecords();
 
   return (
     <div className="container">
