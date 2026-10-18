@@ -10,9 +10,43 @@ export default function CreatePage() {
   const [personIds, setPersonIds] = useState([people[0].id, people[1].id]);
   const [format, setFormat] = useState("观点对谈");
   const [duration, setDuration] = useState("约 4 分钟");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState("");
 
   function updatePerson(index: number, value: string) {
     setPersonIds((current) => current.map((id, position) => position === index ? value : id));
+  }
+
+  async function startEpisode() {
+    setIsSubmitting(true);
+    setError("");
+
+    try {
+      const createResponse = await fetch("/api/episodes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ topicId, personIds, format, duration })
+      });
+      const createPayload = await createResponse.json();
+
+      if (!createResponse.ok) {
+        throw new Error(createPayload.error ?? "无法创建这一席");
+      }
+
+      const generateResponse = await fetch(`/api/episodes/${createPayload.data.id}/generate`, {
+        method: "POST"
+      });
+      const generatePayload = await generateResponse.json();
+
+      if (!generateResponse.ok) {
+        throw new Error(generatePayload.error ?? "生成失败，请稍后重试");
+      }
+
+      router.push(`/episodes/${generatePayload.data.id}`);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "生成失败，请稍后重试");
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -57,7 +91,10 @@ export default function CreatePage() {
           </div>
         </div>
         <div className="notice">当前版本使用演示生成结果，正式版会在生成前固定来源快照、提示词版本和编辑策划单。</div>
-        <button className="button button-dark" style={{ marginTop: 20 }} onClick={() => router.push("/episodes/ai-work-judgment")}>开始生成这席对谈</button>
+        {error ? <div className="notice notice-error" role="alert">{error}</div> : null}
+        <button className="button button-dark" style={{ marginTop: 20 }} onClick={startEpisode} disabled={isSubmitting}>
+          {isSubmitting ? "正在整理这一席…" : "开始生成这席对谈"}
+        </button>
       </section>
     </div>
   );
