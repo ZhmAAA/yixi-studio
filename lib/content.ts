@@ -231,6 +231,10 @@ export function getTopic(slug: string) {
   return topics.find((topic) => topic.slug === slug);
 }
 
+export function getTopicById(id: string) {
+  return topics.find((topic) => topic.id === id);
+}
+
 export function getPerson(slug: string) {
   return people.find((person) => person.slug === slug);
 }
