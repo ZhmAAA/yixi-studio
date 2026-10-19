@@ -65,6 +65,9 @@ export function StudioPodcastScript({ draft }: { draft: PodcastDraft }) {
           <span className="tag">{draft.script.turns.length} 轮</span>
         </div>
         <p className="form-help">{draft.script.speakers.map((speaker) => `${speaker.name}（${speaker.role === "host" ? "主持" : "嘉宾"}）`).join(" · ")}</p>
+        {draft.script.warnings?.length ? <div className="notice" role="status">
+          {draft.script.warnings.map((warning) => <p key={warning}>{warning}</p>)}
+        </div> : null}
         <ol className="podcast-turns">
           {draft.script.turns.map((turn) => {
             const speaker = speakers.get(turn.speakerId);

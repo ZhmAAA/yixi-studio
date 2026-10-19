@@ -124,3 +124,54 @@ test("sqlite store round-trips a podcast draft", async () => {
   assert.equal(listed[0]?.id, draft.id);
   fs.rmSync(file, { force: true });
 });
+
+
+test("all configured guests speak even when there is only one source", () => {
+  const informationPackage = structureFeed("港口夜里仍在卸货。工人说班次被压缩到只剩换班的空档。", { id: "pkg-guests" });
+  const script = InterviewOrchestrator.run(informationPackage, { guestNames: ["甲", "乙", "丙"] });
+  for (const speaker of script.speakers) {
+    assert.ok(script.turns.some((turn) => turn.speakerId === speaker.id), speaker.name);
+  }
+  assert.equal(script.turns.length, 7);
+  assert.throws(() => InterviewOrchestrator.run(informationPackage, {
+    guestNames: ["甲", "乙", "丙"], targetTurns: 5
+  }), /至少需要 7 轮/);
+});
+
+test("the second material is handed to the second guest", () => {
+  const informationPackage = structureFeed(labeledFeed, { id: "pkg-rotation" });
+  const script = InterviewOrchestrator.run(informationPackage, { guestNames: ["甲", "乙"] });
+  assert.deepEqual(script.turns.filter((turn) => turn.speakerId !== "host").map((turn) => turn.speakerId), ["guest-1", "guest-2"]);
+});
+
+test("ambiguous speaker names are rejected", () => {
+  const informationPackage = structureFeed(labeledFeed, { id: "pkg-names" });
+  assert.throws(() => InterviewOrchestrator.run(informationPackage, { hostName: "甲", guestNames: ["甲"] }), /不同的姓名/);
+  assert.throws(() => InterviewOrchestrator.run(informationPackage, { guestNames: ["甲", "甲"] }), /不同的姓名/);
+});
+
+
+test("short corrections and later sentences remain in the script", () => {
+  const informationPackage = structureFeed("夜间施工已经全部停止，住户都能正常休息。不对。后来统计发现夜里仍有施工。", { id: "pkg-correction" });
+  const script = InterviewOrchestrator.run(informationPackage);
+  const spoken = script.turns.filter((turn) => turn.speakerId !== "host").map((turn) => turn.text).join("\n");
+  assert.match(spoken, /不对。/);
+  assert.match(spoken, /夜里仍有施工/);
+  assert.deepEqual(script.warnings, []);
+});
+
+test("long feeds use more than four materials and flag any budget omissions", () => {
+  const feed = Array.from({ length: 12 }, (_, index) => `第${index + 1}份材料指出，这一段有独立的信息需要核对。`).join("\n\n");
+  const informationPackage = structureFeed(feed, { id: "pkg-long" });
+  const script = InterviewOrchestrator.run(informationPackage);
+  assert.equal(script.turns.length, 23);
+  assert.match(script.turns.map((turn) => turn.text).join("\n"), /第11份材料/);
+  assert.match(script.warnings[0], /11\/12/);
+  assert.throws(() => InterviewOrchestrator.run(structureFeed("长".repeat(601))), /单句超过 600 字/);
+});
+
+test("a note that extends a source keeps the qualification", () => {
+  const informationPackage = structureFeed("来源：统计\n某工厂去年收入一亿元。\n\n笔记：某工厂去年收入一亿元。注意该数额包含一次性补贴，不代表可持续收入。", { id: "pkg-note" });
+  const script = InterviewOrchestrator.run(informationPackage);
+  assert.match(script.turns.map((turn) => turn.text).join("\n"), /一次性补贴/);
+});

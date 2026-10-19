@@ -32,7 +32,7 @@ export type InformationPackage = z.infer<typeof InformationPackageSchema>;
 export const OrchestrationConstraintsSchema = z.object({
   hostName: z.string().trim().min(1).max(40).optional(),
   guestNames: z.array(z.string().trim().min(1).max(40)).min(1).max(3).optional(),
-  targetTurns: z.number().int().min(5).max(16).optional(),
+  targetTurns: z.number().int().min(5).max(24).optional(),
   tone: z.string().trim().min(1).max(80).optional()
 });
 export type OrchestrationConstraints = z.infer<typeof OrchestrationConstraintsSchema>;
@@ -73,6 +73,7 @@ export const DialogueScriptSchema = z.object({
   speakers: z.array(DialogueSpeakerSchema).min(2).max(6),
   turns: z.array(DialogueTurnSchema).min(4).max(24),
   disclosure: z.string().min(1).max(300),
+  warnings: z.array(z.string()).default([]),
   tone: z.string().min(1).max(80).optional()
 });
 export type DialogueScript = z.infer<typeof DialogueScriptSchema>;

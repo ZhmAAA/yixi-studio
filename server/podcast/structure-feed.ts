@@ -20,7 +20,7 @@ type LooseSource = {
 };
 
 type Bucket =
-  | { kind: "source"; title?: string; lines: string[] }
+  | { kind: "source"; title?: string; url?: string; lines: string[] }
   | { kind: "note"; lines: string[] }
   | { kind: "prose"; lines: string[] };
 
@@ -60,7 +60,7 @@ function fallbackTitle(excerpt: string) {
 
 function pushSource(sources: LooseSource[], source: LooseSource) {
   const excerpt = source.excerpt.replace(/\s+\n/g, "\n").trim();
-  if (excerpt.length < 4) return;
+  if (!excerpt) return;
   sources.push({
     title: source.title?.trim() || undefined,
     url: source.url,
@@ -68,11 +68,36 @@ function pushSource(sources: LooseSource[], source: LooseSource) {
   });
 }
 
-function takeUrl(lines: string[]) {
+function takeUrl(lines: string[], preferredUrl?: string) {
   const urlLine = lines.find((line) => URL_RE.test(line));
-  const url = urlLine ? URL_RE.exec(urlLine)?.[0] : undefined;
-  const excerpt = lines.filter((line) => line !== urlLine).join("\n");
+  const url = preferredUrl || (urlLine ? URL_RE.exec(urlLine)?.[0] : undefined);
+  // Only move a standalone URL into metadata. Inline links can share a line
+  // with the entire source, so keep that line verbatim for later review.
+  const excerpt = lines.filter((line) => line.trim() !== url).join("\n");
   return { url, excerpt };
+}
+
+function sourceHeader(value: string) {
+  const url = URL_RE.exec(value)?.[0];
+  if (!url) return { title: value || undefined, url: undefined };
+  const markdownLink = value.match(/^\[([^\]]+)\]\(https?:\/\/[^)]+\)$/i);
+  const title = markdownLink?.[1] ?? value.replace(url, "").replace(/^[\s(<]+|[\s)>]+$/g, "");
+  return { title: title.trim() || undefined, url };
+}
+
+function checkLength(value: string | undefined, max: number, label: string) {
+  if (value && value.length > max) {
+    throw new Error(`${label}超过 ${max} 个字，请缩短该项后重试；材料未保存。`);
+  }
+}
+
+function uniqueWithinLimits(items: string[], maxLength: number, maxCount: number, label: string) {
+  const unique = [...new Set(items.map((item) => item.trim()).filter(Boolean))];
+  if (unique.length > maxCount) {
+    throw new Error(`${label}超过 ${maxCount} 条，请拆成多个信息包后重试；材料未保存。`);
+  }
+  unique.forEach((item, index) => checkLength(item, maxLength, `第 ${index + 1} 条${label}`));
+  return unique;
 }
 
 export function structureFeed(raw: string, options: StructureFeedOptions = {}): InformationPackage {
@@ -90,7 +115,7 @@ export function structureFeed(raw: string, options: StructureFeedOptions = {}): 
     if (bucket.kind === "note") {
       notes.push(...bucket.lines.filter(Boolean));
     } else if (bucket.kind === "source") {
-      const { url, excerpt } = takeUrl(bucket.lines);
+      const { url, excerpt } = takeUrl(bucket.lines, bucket.url);
       pushSource(sources, { title: bucket.title, url, excerpt: excerpt || bucket.title || "" });
     } else {
       const { url, excerpt } = takeUrl(bucket.lines);
@@ -137,7 +162,7 @@ export function structureFeed(raw: string, options: StructureFeedOptions = {}): 
     const sourceTitle = labelValue(line, ["来源", "资料", "source"]);
     if (sourceTitle !== undefined) {
       flush();
-      bucket = { kind: "source", title: sourceTitle || undefined, lines: [] };
+      bucket = { kind: "source", ...sourceHeader(sourceTitle), lines: [] };
       continue;
     }
 
@@ -153,31 +178,33 @@ export function structureFeed(raw: string, options: StructureFeedOptions = {}): 
   }
   flush();
 
-  if (sources.length === 0 && notes.length > 0) {
-    for (const note of notes) pushSource(sources, { excerpt: note });
-  }
-
   if (!sources.length && !notes.length) throw new Error("进料里没有可整理的正文");
   if (!title) title = topicTags[0] || fallbackTitle(sources[0]?.excerpt || notes[0] || "");
   const resolvedCollected = collectedBy ?? "user";
   const sourceCollected = resolvedCollected === "ai" ? "ai" : resolvedCollected === "user" ? "user" : undefined;
-  const unique = (items: string[], max: number) => [...new Set(items.map((item) => item.trim()).filter(Boolean))]
-    .map((item) => item.slice(0, max))
-    .filter(Boolean);
+  checkLength(title, 120, "标题");
+  if (sources.length > 20) {
+    throw new Error("来源超过 20 条，请拆成多个信息包后重试；材料未保存。");
+  }
+  sources.forEach((source, index) => {
+    checkLength(source.title, 200, `第 ${index + 1} 条来源标题`);
+    checkLength(source.url, 500, `第 ${index + 1} 条来源链接`);
+    checkLength(source.excerpt, 8000, `第 ${index + 1} 条来源正文`);
+  });
 
   return InformationPackageSchema.parse({
     id: options.id?.trim() || `pkg-${randomBytes(4).toString("hex")}`,
-    title: title.slice(0, 120),
+    title,
     collectedBy: resolvedCollected,
-    sources: sources.slice(0, 20).map((source, index) => ({
+    sources: sources.map((source, index) => ({
       id: `src-${index + 1}`,
-      title: source.title?.slice(0, 200),
-      url: source.url && source.url.length <= 500 ? source.url : undefined,
-      excerpt: source.excerpt.slice(0, 8000),
+      title: source.title,
+      url: source.url,
+      excerpt: source.excerpt,
       collectedBy: sourceCollected
     })),
-    notes: unique(notes, 4000).slice(0, 30),
-    roleTags: unique(roleTags, 40).slice(0, 12),
-    topicTags: unique(topicTags, 40).slice(0, 12)
+    notes: uniqueWithinLimits(notes, 4000, 30, "笔记"),
+    roleTags: uniqueWithinLimits(roleTags, 40, 12, "角色标签"),
+    topicTags: uniqueWithinLimits(topicTags, 40, 12, "话题标签")
   });
 }
