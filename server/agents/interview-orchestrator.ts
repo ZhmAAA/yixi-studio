@@ -10,13 +10,17 @@ import {
   type InformationPackage,
   type InterviewConfig
 } from "@/server/podcast/contracts";
+import {
+  appendMaterialTurn,
+  materialCoverageWarnings,
+  materialsFromPackage,
+  packageProbes,
+  peopleFromRoles,
+  type MaterialBeat as Beat
+} from "@/server/podcast/materials";
 
 export type { InterviewConfig } from "@/server/podcast/contracts";
-
-type Beat = {
-  text: string;
-  sourceId?: string;
-};
+export { packageProbes, splitSentences } from "@/server/podcast/materials";
 
 type InterviewOptions = {
   scriptId?: string;
@@ -39,57 +43,8 @@ export const InterviewOrchestrator = {
   run: orchestrateInterview
 };
 
-export function splitSentences(text: string) {
-  return text.replace(/\r\n/g, "\n")
-    .split(/(?<=[。！？!?])|\n+|(?<=\.)\s+(?=[A-Z])/)
-    .map((part) => part.replace(/\s+/g, " ").trim()).filter(Boolean);
-}
-
 function spokenExcerpt(text: string) {
   return text.replace(/\s+/g, " ").trim();
-}
-
-// Keep complete sentences, including short corrections, together where possible.
-function excerptChunks(text: string): string[] {
-  const chunks: string[] = [];
-  let current = "";
-  for (const sentence of splitSentences(text)) {
-    if (sentence.length > 600) throw new Error("材料中有单句超过 600 字，请先分句或换行再编排");
-    const joined = current ? `${current} ${sentence}` : sentence;
-    if (joined.length > 600) {
-      chunks.push(current);
-      current = sentence;
-    } else current = joined;
-  }
-  if (current) chunks.push(current);
-  return chunks;
-}
-
-export function packageProbes(informationPackage: InformationPackage) {
-  const texts = [
-    ...informationPackage.sources.map((source) => source.excerpt),
-    ...informationPackage.notes
-  ];
-  const probes = new Set<string>();
-  for (const text of texts) {
-    for (const sentence of splitSentences(text)) {
-      probes.add(sentence.slice(0, 12));
-    }
-  }
-  return [...probes];
-}
-
-function peopleFromRoles(tags: string[] | undefined, kind: "host" | "guest") {
-  if (!tags?.length) return [];
-  const names: string[] = [];
-  for (const tag of tags) {
-    const match = tag.match(/^(主持|主持人|嘉宾|host|guest)\s*[:：]\s*(.+)$/i);
-    if (!match) continue;
-    const label = match[1].toLowerCase();
-    const isHost = label === "主持" || label === "主持人" || label === "host";
-    if ((kind === "host") === isHost) names.push(match[2].trim());
-  }
-  return names.filter(Boolean);
 }
 
 function resolveHost(informationPackage: InformationPackage, config?: InterviewConfig) {
@@ -98,31 +53,11 @@ function resolveHost(informationPackage: InformationPackage, config?: InterviewC
 
 function resolveGuests(informationPackage: InformationPackage, config?: InterviewConfig) {
   const named = (config?.guestNames ?? []).map((name) => name.trim()).filter(Boolean);
+  if (named.length > 3) throw new Error("访谈最多支持 3 位嘉宾，请减少嘉宾人数");
   if (named.length) return named;
   const tagged = peopleFromRoles(informationPackage.roleTags, "guest");
   if (tagged.length > 3) throw new Error("访谈最多支持 3 位嘉宾，请减少角色标签");
   return tagged.length ? tagged : ["嘉宾"];
-}
-
-function beatsFromPackage(informationPackage: InformationPackage) {
-  const sources = informationPackage.sources.filter((source) => source.excerpt.trim());
-  const sourceBeats: Beat[] = sources.flatMap((source) => excerptChunks(source.excerpt)
-    .map((text) => ({ text, sourceId: source.id })));
-  const noteBeats: Beat[] = informationPackage.notes
-    .map((note) => note.trim()).filter(Boolean)
-    .filter((note) => !sources.some((source) => source.excerpt.includes(note)))
-    .flatMap((note) => excerptChunks(note).map((text) => ({ text })));
-  return [...sourceBeats, ...noteBeats];
-}
-
-function sourceIds(beat: Beat) {
-  return beat.sourceId ? [beat.sourceId] : [];
-}
-
-function bound(text: string) {
-  const trimmed = text.replace(/[ \t]+\n/g, "\n").replace(/[ \t]{2,}/g, " ").trim();
-  if (trimmed.length <= 2000) return trimmed;
-  return `${trimmed.slice(0, 1998)}…`;
 }
 
 function sharedToken(left: string, right: string) {
@@ -204,21 +139,14 @@ export function orchestrateInterview(
       role: "guest" as const
     }))
   ];
-  const allBeats = beatsFromPackage(informationPackage);
-  if (!allBeats.length) throw new Error("信息包里没有够长的句子，写不下访谈");
+  const allBeats = materialsFromPackage(informationPackage);
   const ceiling = config.targetTurns ?? 23;
   const beats = allBeats.slice(0, Math.floor((ceiling - 1) / 2));
   const turns: DialogueTurn[] = [];
   const heard: Beat[] = [beats[0]];
 
-  function push(speakerId: string, text: string, stageDirection: string, ids: string[]) {
-    turns.push({
-      sequence: turns.length + 1,
-      speakerId,
-      text: bound(text),
-      stageDirection,
-      sourceIds: ids
-    });
+  function push(speakerId: string, text: string, stageDirection: string, materials: Beat[]) {
+    appendMaterialTurn(turns, speakerId, text, stageDirection, materials);
   }
 
   const firstGuest = speakers[1];
@@ -226,15 +154,15 @@ export function orchestrateInterview(
     "host",
     openingLine(informationPackage.title, firstGuest.name, spokenExcerpt(beats[0].text), informationPackage.topicTags, allBeats.length > beats.length),
     "开场，面向听众",
-    sourceIds(beats[0])
+    [beats[0]]
   );
-  push(firstGuest.id, readLine(beats[0].text), "接过开场", sourceIds(beats[0]));
+  push(firstGuest.id, readLine(beats[0].text), "接过开场", [beats[0]]);
 
   for (let index = 1; index < beats.length; index += 1) {
     if (ceiling && turns.length + 2 > ceiling - 1) break;
     const guest = speakers[(index % guestNames.length) + 1];
-    push("host", followUpLine(guest.name, beats[index].text, index), "追问", sourceIds(beats[index]));
-    push(guest.id, relateLine(beats[index - 1].text, beats[index].text), "按原文回答", [...new Set([...sourceIds(beats[index - 1]), ...sourceIds(beats[index])])]);
+    push("host", followUpLine(guest.name, beats[index].text, index), "追问", [beats[index]]);
+    push(guest.id, relateLine(beats[index - 1].text, beats[index].text), "按原文回答", [beats[index - 1], beats[index]]);
     heard.push(beats[index]);
   }
 
@@ -242,11 +170,11 @@ export function orchestrateInterview(
   for (const guest of speakers.slice(1)) {
     const hasSpoken = turns.some((turn) => turn.speakerId === guest.id);
     if (hasSpoken && (turns.length > 2 || guestNames.length > 1)) continue;
-    push("host", clarifyQuestion(guest.name, heard.at(-1)!.text), "追问", sourceIds(heard.at(-1)!));
-    push(guest.id, clarifyAnswer(heard.at(-1)!.text), "按原文回答", sourceIds(heard.at(-1)!));
+    push("host", clarifyQuestion(guest.name, heard.at(-1)!.text), "追问", [heard.at(-1)!]);
+    push(guest.id, clarifyAnswer(heard.at(-1)!.text), "按原文回答", [heard.at(-1)!]);
   }
 
-  push("host", closingLine(informationPackage.title, heard.at(-1)!), "收束", sourceIds(heard.at(-1)!));
+  push("host", closingLine(informationPackage.title, heard.at(-1)!), "收束", [heard.at(-1)!]);
 
   const known = new Set(speakers.map((speaker) => speaker.id));
   if (turns.some((turn) => !known.has(turn.speakerId))) throw new Error("出现了未入席的说话人");
@@ -260,9 +188,7 @@ export function orchestrateInterview(
     speakers,
     turns,
     disclosure: FIXED_DISCLOSURE,
-    warnings: allBeats.length > heard.length
-      ? [`本次采用 ${heard.length}/${allBeats.length} 个材料片段，受轮次上限限制，其余片段未进入稿件。请分批编排并核对遗漏的限定与更正。`]
-      : [],
+    warnings: materialCoverageWarnings(allBeats, heard.map((beat) => beat.key)),
     tone: config?.tone?.trim() || undefined
   });
 }
@@ -270,7 +196,7 @@ export function orchestrateInterview(
 export function runOrchestration(raw: unknown, options?: InterviewOptions): DialogueScript {
   const request = OrchestrationRequestSchema.parse(raw);
   if (request.form !== "interview") {
-    throw new Error("辩论和圆桌已写入编排请求，这一版只实现访谈");
+    throw new Error("此兼容入口只支持访谈，其他形式请使用统一编排入口");
   }
   if (!request.package) {
     throw new Error("这一版需要在请求里带上信息包内容");

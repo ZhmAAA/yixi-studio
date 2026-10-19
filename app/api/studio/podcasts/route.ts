@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { requestErrorMessage } from "@/lib/request-error";
 import { isStudioAuthorized } from "@/lib/studio-auth";
 import { listPodcastDrafts } from "@/server/repositories/podcast-repository";
-import { createInterviewDraft } from "@/server/services/podcast-service";
+import { createPodcastDraft } from "@/server/services/podcast-service";
 
 function unauthorized() {
   console.warn("[auth] denied /api/studio/podcasts");
@@ -28,9 +28,9 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   if (!isStudioAuthorized(request)) return unauthorized();
   try {
-    const draft = await createInterviewDraft(await request.json());
+    const draft = await createPodcastDraft(await request.json());
     return NextResponse.json({ data: draft }, { status: 201 });
   } catch (error) {
-    return NextResponse.json({ error: requestErrorMessage(error, "无法编排访谈稿") }, { status: 400 });
+    return NextResponse.json({ error: requestErrorMessage(error, "无法编排对谈稿") }, { status: 400 });
   }
 }

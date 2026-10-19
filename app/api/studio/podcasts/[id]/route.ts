@@ -9,6 +9,6 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   }
   const { id } = await params;
   const draft = await getPodcastDraft(id);
-  if (!draft) return NextResponse.json({ error: "找不到访谈草稿" }, { status: 404 });
+  if (!draft) return NextResponse.json({ error: "找不到对谈草稿" }, { status: 404 });
   return NextResponse.json({ data: draft });
 }

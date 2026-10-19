@@ -582,3 +582,6 @@ ul { margin: 0; padding: 0; }
 }
 
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+.podcast-citations { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 12px; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+.podcast-source, .podcast-notes li { scroll-margin-top: 90px; }

@@ -61,15 +61,15 @@ test("plain feed still becomes a host and guest interview", () => {
   assert.match(script.turns[0]?.text ?? "", /港口夜里仍在卸货/);
 });
 
-test("debate and roundtable stay unimplemented", () => {
-  const informationPackage = structureFeed("材料只有这一句，用来确认辩论还不能编排。", { id: "pkg-wait" });
+test("the legacy interview-only entry point refuses other forms", () => {
+  const informationPackage = structureFeed("材料只有这一句，用来确认旧入口仍只接收访谈请求。", { id: "pkg-wait" });
   assert.throws(
     () => runOrchestration({ form: "debate", package: informationPackage }),
-    /只实现访谈/
+    /此兼容入口只支持访谈/
   );
   assert.throws(
     () => runOrchestration({ form: "roundtable", package: informationPackage }),
-    /只实现访谈/
+    /此兼容入口只支持访谈/
   );
 });
 

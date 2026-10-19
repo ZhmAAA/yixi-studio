@@ -1,3 +1,4 @@
+import { PODCAST_FORM_LABELS } from "@/lib/podcast-forms";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { StudioPodcastScript } from "@/components/studio-podcast-script";
@@ -11,9 +12,9 @@ export default async function StudioPodcastDraftPage({ params }: { params: Promi
   return (
     <div className="container">
       <section className="page-intro">
-        <span className="kicker">访谈草稿</span>
+        <span className="kicker">{PODCAST_FORM_LABELS[draft.form]}草稿</span>
         <h1>{draft.script.title}</h1>
-        <p>这是工作台里保存的访谈稿，刷新后仍按这条 id 读取。公开页不会展示它。</p>
+        <p>这是工作台里保存的对谈稿，刷新后仍按这条 id 读取。公开页不会展示它。</p>
         <p><Link href="/studio/podcast" className="link-quiet">返回编排</Link></p>
       </section>
       <StudioPodcastScript draft={draft} />
