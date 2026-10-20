@@ -585,3 +585,14 @@ ul { margin: 0; padding: 0; }
 
 .podcast-citations { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 12px; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
 .podcast-source, .podcast-notes li { scroll-margin-top: 90px; }
+.podcast-mode-notice p { margin: 8px 0 0; }
+.podcast-generation-tag { margin-left: 8px; }
+.podcast-generation-record { margin-bottom: 16px; overflow-wrap: anywhere; }
+.podcast-generation-record summary, .podcast-evidence summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+.podcast-generation-details { display: grid; grid-template-columns: minmax(72px, auto) minmax(0, 1fr); gap: 6px 14px; font-size: 13px; }
+.podcast-generation-details dt { color: var(--muted); }
+.podcast-generation-details dd { margin: 0; }
+.podcast-evidence { margin-top: 12px; }
+.podcast-evidence ol { list-style: none; margin: 12px 0 0; padding: 0; }
+.podcast-evidence blockquote { margin: 8px 0 16px; border-left: 2px solid var(--line); padding-left: 14px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.podcast-turn header { flex-wrap: wrap; }

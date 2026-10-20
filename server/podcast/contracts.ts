@@ -63,7 +63,13 @@ export const DialogueTurnSchema = z.object({
   stageDirection: z.string().min(1).max(80).optional(),
   sourceIds: z.array(z.string().min(1)).max(8),
   // Zero-based indexes into InformationPackage.notes; absent in older drafts.
-  noteIndexes: z.array(z.number().int().nonnegative()).max(8).optional()
+  noteIndexes: z.array(z.number().int().nonnegative()).max(8).optional(),
+  provenance: z.enum(["quote", "summary", "synthetic"]).optional(),
+  evidence: z.array(z.object({
+    sourceId: z.string().min(1).nullable(),
+    noteIndex: z.number().int().nonnegative().nullable(),
+    quote: z.string().trim().min(1).max(8000)
+  })).max(16).optional()
 });
 export type DialogueTurn = z.infer<typeof DialogueTurnSchema>;
 
@@ -107,6 +113,21 @@ export const SubtitleCueSchema = z.object({
 });
 export type SubtitleCue = z.infer<typeof SubtitleCueSchema>;
 
+export const PodcastGenerationSchema = z.object({
+  mode: z.enum(["template", "model"]),
+  provider: z.enum(["deterministic", "openai-agents"]),
+  model: z.string().min(1).max(200).optional(),
+  promptVersion: z.string().min(1).max(100),
+  generatedAt: z.string().min(1),
+  durationMs: z.number().int().nonnegative(),
+  usage: z.object({
+    inputTokens: z.number().int().nonnegative(),
+    outputTokens: z.number().int().nonnegative(),
+    totalTokens: z.number().int().nonnegative()
+  }).optional()
+});
+export type PodcastGeneration = z.infer<typeof PodcastGenerationSchema>;
+
 export const PodcastDraftSchema = z.object({
   id: z.string().min(1),
   title: z.string().min(1).max(160),
@@ -116,6 +137,7 @@ export const PodcastDraftSchema = z.object({
   script: DialogueScriptSchema,
   audioPlan: EpisodeAudioPlanSchema,
   srt: z.string().min(1),
+  generation: PodcastGenerationSchema.optional(),
   createdAt: z.string().min(1),
   updatedAt: z.string().min(1)
 });
@@ -123,6 +145,7 @@ export type PodcastDraft = z.infer<typeof PodcastDraftSchema>;
 
 export const PodcastRunInputSchema = z.object({
   form: PodcastFormSchema.default("interview"),
+  generationMode: z.enum(["template", "model"]).default("template"),
   feedText: z.string().trim().min(20, "进料至少 20 个字").max(20000, "进料请控制在 2 万字以内"),
   title: z.string().trim().max(120).optional(),
   hostName: z.string().trim().max(40).optional(),

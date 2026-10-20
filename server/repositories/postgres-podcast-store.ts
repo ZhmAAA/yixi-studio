@@ -8,14 +8,15 @@ import {
 } from "@/server/repositories/podcast-store";
 
 const INSERT = `INSERT INTO podcast_drafts (
-  id, title, form, status, package_json, script_json, audio_plan_json, srt, created_at, updated_at
-) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`;
+  id, title, form, status, package_json, script_json, audio_plan_json, srt, created_at, updated_at, generation_json
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`;
 
 export async function openPostgresPodcastStore(connectionString: string): Promise<PodcastDraftStore> {
   const pool = new Pool({ connectionString, max: 5 });
   for (const statement of PODCAST_SCHEMA_STATEMENTS) {
     await pool.query(statement);
   }
+  await pool.query("ALTER TABLE podcast_drafts ADD COLUMN IF NOT EXISTS generation_json TEXT");
   console.info("[podcast] using postgres");
 
   return {
