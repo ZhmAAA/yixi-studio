@@ -7,6 +7,12 @@ const collectedLabel = {
   mixed: "用户与 AI"
 } as const;
 
+const provenanceLabels = {
+  quote: "原文引用",
+  summary: "材料摘要",
+  synthetic: "AI 演绎"
+} as const;
+
 function formatDuration(ms: number) {
   const totalSeconds = Math.round(ms / 1000);
   const minutes = Math.floor(totalSeconds / 60);
@@ -23,7 +29,10 @@ function safeUrl(url?: string) {
 
 export function StudioPodcastScript({ draft }: { draft: PodcastDraft }) {
   const speakers = new Map(draft.script.speakers.map((speaker) => [speaker.id, speaker]));
+  const sources = new Map(draft.package.sources.map((source) => [source.id, source]));
   const audioReady = draft.audioPlan.segments.some((segment) => segment.audioIncluded);
+  const generation = draft.generation;
+  const generationLabel = generation ? generation.mode === "model" ? "模型生成" : "模板编排" : "历史模板稿";
 
   return (
     <div className="podcast-layout">
@@ -63,9 +72,25 @@ export function StudioPodcastScript({ draft }: { draft: PodcastDraft }) {
       <section className="card editor-section">
         <div className="section-header">
           <div><h2>{draft.script.title}</h2></div>
-          <span className="tag">{draft.script.turns.length} 轮</span>
+          <div className="tag-row"><span className="tag">{generationLabel}</span><span className="tag">{draft.script.turns.length} 轮</span></div>
         </div>
+        {generation ? (
+          <div className="podcast-generation-record">
+            <p className="form-help">{generation.mode === "model" ? `模型：${generation.model || "未记录模型名称"} · ` : ""}生成耗时 {(generation.durationMs / 1000).toFixed(1)} 秒</p>
+            <details>
+              <summary>生成记录</summary>
+              <dl className="podcast-generation-details">
+                <dt>生成方式</dt><dd>{generationLabel}</dd>
+                <dt>提供方</dt><dd>{generation.provider}</dd>
+                <dt>提示词版本</dt><dd>{generation.promptVersion}</dd>
+                <dt>生成时间</dt><dd><time dateTime={generation.generatedAt}>{generation.generatedAt}</time></dd>
+                {generation.usage ? <><dt>Token 用量</dt><dd>输入 {generation.usage.inputTokens.toLocaleString("zh-CN")} · 输出 {generation.usage.outputTokens.toLocaleString("zh-CN")} · 合计 {generation.usage.totalTokens.toLocaleString("zh-CN")}</dd></> : null}
+              </dl>
+            </details>
+          </div>
+        ) : <p className="form-help">这份历史模板稿未记录模型或生成用量。</p>}
         <p className="form-help">{draft.script.speakers.map((speaker) => `${speaker.name}（${PODCAST_ROLE_LABELS[speaker.role] ?? "嘉宾"}）`).join(" · ")}</p>
+        <p className="form-help">逐轮区分原文引用、材料摘要与 AI 演绎。引用与摘要均需核对来源，不表示事实已经核实。</p>
         {draft.script.warnings?.length ? <div className="notice" role="status">
           {draft.script.warnings.map((warning) => <p key={warning}>{warning}</p>)}
         </div> : null}
@@ -77,16 +102,38 @@ export function StudioPodcastScript({ draft }: { draft: PodcastDraft }) {
                 <header>
                   <strong>第 {turn.sequence} 轮 · {speaker?.name ?? turn.speakerId}</strong>
                   {turn.stageDirection ? <span className="podcast-stage">{turn.stageDirection}</span> : null}
+                  <span className="tag">{turn.provenance ? provenanceLabels[turn.provenance] : "未记录内容类型"}</span>
                 </header>
                 <p>{turn.text}</p>
                 <div className="podcast-citations">
                   {turn.sourceIds.map((id) => {
-                    const source = draft.package.sources.find((item) => item.id === id);
+                    const source = sources.get(id);
                     return <a key={id} href={`#${draft.id}-${id}`}>来源：{source?.title || id}</a>;
                   })}
                   {turn.noteIndexes?.map((index) => <a key={`note-${index}`} href={`#${draft.id}-note-${index}`}>笔记 {index + 1}</a>)}
                   {!turn.sourceIds.length && !turn.noteIndexes?.length ? <span>待补充逐轮引用</span> : null}
                 </div>
+                {turn.evidence?.length ? (
+                  <details className="podcast-evidence">
+                    <summary>查看依据原文（{turn.evidence.length} 处）</summary>
+                    <ol>
+                      {turn.evidence.map((evidence, index) => {
+                        const source = evidence.sourceId ? sources.get(evidence.sourceId) : undefined;
+                        const hasNote = evidence.noteIndex !== null && draft.package.notes[evidence.noteIndex] !== undefined;
+                        return (
+                          <li key={index}>
+                            <div className="podcast-citations">
+                              {source ? <a href={`#${draft.id}-${source.id}`}>来源：{source.title || source.id}</a> : null}
+                              {hasNote ? <a href={`#${draft.id}-note-${evidence.noteIndex}`}>笔记 {evidence.noteIndex! + 1}</a> : null}
+                              {!source && !hasNote ? <span>原文位置待核对</span> : null}
+                            </div>
+                            <blockquote>{evidence.quote}</blockquote>
+                          </li>
+                        );
+                      })}
+                    </ol>
+                  </details>
+                ) : null}
               </li>
             );
           })}

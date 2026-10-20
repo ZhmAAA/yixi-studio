@@ -10,6 +10,7 @@ export const PODCAST_SCHEMA_STATEMENTS = [
     script_json TEXT NOT NULL,
     audio_plan_json TEXT NOT NULL,
     srt TEXT NOT NULL,
+    generation_json TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
   )`,
@@ -31,6 +32,7 @@ export type PodcastDraftRow = {
   script_json: string;
   audio_plan_json: string;
   srt: string;
+  generation_json?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -46,7 +48,8 @@ export function draftToParams(draft: PodcastDraft) {
     JSON.stringify(draft.audioPlan),
     draft.srt,
     draft.createdAt,
-    draft.updatedAt
+    draft.updatedAt,
+    draft.generation ? JSON.stringify(draft.generation) : null
   ];
 }
 
@@ -54,10 +57,12 @@ export function rowToDraft(row: PodcastDraftRow): PodcastDraft {
   let informationPackage: unknown;
   let script: unknown;
   let audioPlan: unknown;
+  let generation: unknown;
   try {
     informationPackage = JSON.parse(row.package_json);
     script = JSON.parse(row.script_json);
     audioPlan = JSON.parse(row.audio_plan_json);
+    generation = row.generation_json ? JSON.parse(row.generation_json) : undefined;
   } catch {
     throw new Error("播客草稿记录损坏");
   }
@@ -71,6 +76,7 @@ export function rowToDraft(row: PodcastDraftRow): PodcastDraft {
     script,
     audioPlan,
     srt: row.srt,
+    ...(generation === undefined ? {} : { generation }),
     createdAt: row.created_at,
     updatedAt: row.updated_at
   });

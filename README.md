@@ -20,7 +20,7 @@
 - Zod 内容与请求校验
 - Node.js 22.13+（默认用内置 `node:sqlite` 把一席写到文件）
 - 可选 Postgres：设置 `DATABASE_URL` 后走同一套 repository 接口
-- GitHub Actions 用 `npm ci` 执行 lint 与 build
+- GitHub Actions 用 `npm ci` 执行 lint、test 与 build
 
 ## 第一版实际能做的
 
@@ -30,7 +30,9 @@
 - 编辑部登录后新建草稿、改稿，并把状态设为草稿 / 待审核 / 已发布
 - 匿名读者不能改内容，也不能调用创建和生成接口
 
-还没做：真实大模型、真实 TTS 供应商、分享卡片、问题人物来源的后台 CRUD、搜索和收藏。确定性编排器仍只用于内测草稿。播客访谈、辩论和圆桌是并行的草稿工作流，见 `docs/podcast-workflow.md`。
+播客访谈、辩论和圆桌支持模板编排与真实模型两种路径。模型路径使用 OpenAI Agents SDK，需在服务端配置凭证和模型名；生成结果经结构与引用校验后保存为草稿，并记录模型、提示词版本、耗时及供应商返回的 Token 用量。缺少配置或模型失败时明确报错，不自动改用模板。详见 `docs/podcast-workflow.md`。
+
+原「问题 × 人物」生成器仍为确定性演示。还没做：真实 TTS 供应商、分享卡片、问题人物来源的后台 CRUD、搜索和收藏；结构与引用校验也不等于事实和内容质量验收。
 
 ## 已搭建页面
 
@@ -82,6 +84,7 @@ npm run dev
 
 ```bash
 npm run lint
+npm test
 npm run build
 npm start
 ```
@@ -93,13 +96,24 @@ npm start
 3. 在工作台把草稿改为已发布后，重启进程，同一 id 仍可公开阅读。
 4. `/create` 默认是预约说明，不出现可提交的生成表单。
 
+真实模型文本生成：
+
+1. 在未提交的 `.env.local` 中设置 `OPENAI_API_KEY` 与 `AGENT_MODEL`。不要使用 `NEXT_PUBLIC_*`，不要将密钥写进浏览器或提交仓库。
+2. 默认使用 Responses API。兼容网关可设置 `OPENAI_BASE_URL` 和 `AGENT_API=chat_completions`；网关和所选模型必须支持严格 JSON Schema 输出。
+3. 重启服务，在 `/studio/podcast` 选择「模型生成」。未配置时该选项不可用，模板编排仍可使用。
+4. 核对稿件的「模型生成」标记、引用依据、生成记录和待编辑核对提示，再保存后的重开/重启回读。调用会产生供应商用量；实现不自动重试。
+
+默认超时 120 秒、输出上限 12,000 Token，可通过 `.env.example` 中的服务端变量调整。SDK tracing 关闭，Responses `store=false`；模型仍会收到本次信息包。单进程最多同时执行 2 个模型请求，多实例限流/任务队列尚未实现。
+
+自动化测试中的模拟供应商响应只验证调用协议和错误路径，不能证明实际账号权限、模型质量或真实调用已通过。真实联调需要有效配置；Postgres 的实际实例验收单独进行。
+
 ## 目录约定
 
 - `app/`：App Router 页面与 API Route Handlers
 - `components/`：可复用界面组件
 - `lib/`：内容模型、种子数据、声明文案、工作台鉴权
 - `server/contracts.ts`：请求与生成结果的 Zod 契约
-- `server/agents/`：确定性演示编排器（对谈草稿，以及播客访谈 / 辩论 / 圆桌）
+- `server/agents/`：确定性编排器、OpenAI Agents SDK 播客模型调用与服务端配置
 - `server/podcast/`：播客信息包、语音 / 拼接 / 字幕接口
 - `server/services/`：业务服务
 - `server/repositories/`：一席仓储；`episode-store.ts` 是可替换的存储接口

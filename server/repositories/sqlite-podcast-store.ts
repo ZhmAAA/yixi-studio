@@ -10,15 +10,29 @@ import {
 } from "@/server/repositories/podcast-store";
 
 const INSERT = `INSERT INTO podcast_drafts (
-  id, title, form, status, package_json, script_json, audio_plan_json, srt, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+  id, title, form, status, package_json, script_json, audio_plan_json, srt, created_at, updated_at, generation_json
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
 export function openSqlitePodcastStore(filePath?: string): PodcastDraftStore {
   const resolved = filePath?.trim() || path.join(process.cwd(), "data", "episodes.sqlite");
   fs.mkdirSync(path.dirname(resolved), { recursive: true });
   const database = new DatabaseSync(resolved);
+  database.exec("PRAGMA busy_timeout = 5000");
   database.exec("PRAGMA journal_mode = WAL");
   for (const statement of PODCAST_SCHEMA_STATEMENTS) database.exec(statement);
+  // Serialize the idempotent migration so concurrent workers cannot both add the column.
+  database.exec("BEGIN IMMEDIATE");
+  try {
+    const columns = database.prepare("PRAGMA table_info(podcast_drafts)").all() as Array<{ name: string }>;
+    if (!columns.some((column) => column.name === "generation_json")) {
+      database.exec("ALTER TABLE podcast_drafts ADD COLUMN generation_json TEXT");
+    }
+    database.exec("COMMIT");
+  } catch (error) {
+    database.exec("ROLLBACK");
+    database.close();
+    throw error;
+  }
   console.info(`[podcast] using sqlite ${resolved}`);
 
   const getStatement = database.prepare("SELECT * FROM podcast_drafts WHERE id = ?");
