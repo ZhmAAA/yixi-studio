@@ -30,7 +30,7 @@
 - 编辑部登录后新建草稿、改稿，并把状态设为草稿 / 待审核 / 已发布
 - 匿名读者不能改内容，也不能调用创建和生成接口
 
-还没做：真实大模型、真实 TTS 供应商、分享卡片、问题人物来源的后台 CRUD、搜索和收藏。确定性编排器仍只用于内测草稿。播客访谈是另一条工作流，见 `docs/podcast-workflow.md`。
+还没做：真实大模型、真实 TTS 供应商、分享卡片、问题人物来源的后台 CRUD、搜索和收藏。确定性编排器仍只用于内测草稿。播客访谈、辩论和圆桌是并行的草稿工作流，见 `docs/podcast-workflow.md`。
 
 ## 已搭建页面
 
@@ -45,7 +45,7 @@
 - `/studio` 内容工作台（需要密码）
 - `/studio/new` 新建编辑草稿
 - `/studio/episodes/[id]` 对谈编辑器与预览
-- `/studio/podcast` 播客访谈编排（需要密码；进料 → 访谈稿；音频与字幕为可插拔桩）
+- `/studio/podcast` 播客编排（需要密码；进料 → 访谈 / 辩论 / 圆桌草稿；音频与字幕为可插拔桩）
 
 ## 数据
 
@@ -99,7 +99,7 @@ npm start
 - `components/`：可复用界面组件
 - `lib/`：内容模型、种子数据、声明文案、工作台鉴权
 - `server/contracts.ts`：请求与生成结果的 Zod 契约
-- `server/agents/`：确定性演示编排器（对谈草稿，以及播客访谈）
+- `server/agents/`：确定性演示编排器（对谈草稿，以及播客访谈 / 辩论 / 圆桌）
 - `server/podcast/`：播客信息包、语音 / 拼接 / 字幕接口
 - `server/services/`：业务服务
 - `server/repositories/`：一席仓储；`episode-store.ts` 是可替换的存储接口

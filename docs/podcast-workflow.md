@@ -1,58 +1,60 @@
 # AI 播客编排工作流
 
-对应 Linear [HUA-74](https://linear.app/huangming/issue/HUA-74)。这一篇只说明工作流边界，以及这一版代码实际跑通了哪一段。
+对应 Linear [HUA-74](https://linear.app/huangming/issue/HUA-74)。核心是把人或 AI 搜集的材料组织成可核对的对谈稿；它与现有「问题 × 人物」一席生产流程并行，生成结果只进入 Studio 草稿。
 
-## 这是工作流，不是技能包
+## 当前链路
 
-要做的是一条生产流程：进料进来，编排成听得下去的长对话，再按时间轴接上语音和字幕。核心是**编排保流畅**。进料可以是用户搜集的，也可以是 AI 搜集的，不要求先做成观点汇总。
+1. 粘贴或上传 txt / Markdown 进料，解析为来源、笔记和可选角色标签。
+2. 选择访谈、辩论或圆桌；可以填主持人和多个发言者姓名。
+3. 按模板编排完整材料片段，逐轮记录说话人、阶段、来源 ID 或笔记编号。
+4. 在 Studio 预览并保存至 SQLite / Postgres；可从列表重开并核对逐轮引用。
+5. 生成音频计划与 SRT 占位结果，等待后续 TTS 供应商和真实时间轴接入。
 
-它不是可复用的 Agent 技能包，也不替代一席话现有的问题 × 人物对谈。`DialogueOrchestrator` 仍只给编辑部一席草稿出建议。播客访谈走旁边这条 Studio 路径，草稿不进入公开页。
+## 三种形式
 
-## 五段
+| 形式 | 参与者 | 结构 |
+| --- | --- | --- |
+| 访谈 | 1 位主持、1–3 位嘉宾 | 开场、基于材料追问、嘉宾回应、收束 |
+| 辩论 | 1 位主持、2 位辩手 | 双方立论、双向质询与回应、双方总结、主持收束 |
+| 圆桌 | 1 位主持、2–4 位嘉宾 | 逐人开场、跨人回应、主持收束 |
 
-1. **进料**。用户或 AI 交来的材料，先整理成信息包：来源、笔记，以及可选的角色 / 话题标签。
-2. **编排**。按形式把角色和回合排成流畅长对话。形式预留访谈、辩论、圆桌。
-3. **TTS**。文字转语音。供应商以后再测，接口先留好。
-4. **拼接**。按时间轴把各段音频接成一集。
-5. **字幕**。对齐字幕轨，例如 SRT。
+未填写姓名时，先读取进料中的角色标签，再使用该形式的默认姓名。多个姓名可在表单中用逗号、顿号或分号分隔。角色姓名必须彼此不同；人数或轮次预算不满足形式要求时明确拒绝。
 
-## 这一版实现了什么
+编排目前使用确定性模板，不调用真实模型。辩论的论证/质询分工是演绎角色，不代表资料作者或被命名人物持有相应立场。模板引用原始材料并提出待核对问题，不凭空补写事实、裁定胜负或宣称已形成共识。所有稿件保留固定 AI 演绎声明，需要编辑继续审阅。
 
-- 领域类型和 Zod 校验：`InformationPackage`、`OrchestrationRequest`（`interview | debate | roundtable`）、`DialogueScript`，以及 `EpisodeAudioPlan`、`SubtitleCue`。
-- `InterviewOrchestrator`：确定性访谈编排，不调用模型。主持人开场、嘉宾按材料接话，再追问和收束。按完整句组合材料片段，保留短句、更正及限定；每位配置的嘉宾都会发言。
-- Studio：`/studio/podcast` 粘贴或上传进料，编排后预览回合。草稿写入与一席相同的 SQLite / Postgres 路径（表 `podcast_drafts`）。
-- 语音、拼接、字幕只有接口和桩实现。未设置供应商时不会发请求，也不需要 API key。
-- 辩论和圆桌只出现在请求类型里，调用会明确拒绝。
+## 输入保真与覆盖范围
 
-公开页仍只展示已发布一席。工作台密码、`ALLOW_PUBLIC_CREATE` 和固定演绎声明的行为没有改。
+- 保留正文中的行内 URL、短否定、更正和后续限定；独立 URL 与来源标题中的 URL 记入来源信息。
+- 进料最多 20,000 字；信息包最多 20 条来源（每条 8,000 字）、30 条笔记（每条 4,000 字）。超限会明确报错，不静默裁掉材料。
+- 按完整句组合最多 600 字的材料片段。超过 600 字的单句要求先分句或换行。
+- 模板按轮次预算选用材料，未覆盖片段的数量会显示在稿件上方。编辑应核对未覆盖内容是否含重要限定，必要时分批编排。
+- 每轮 `sourceIds` 指向信息包来源；可选 `noteIndexes` 为笔记的零基索引。界面显示可跳转的来源和笔记编号；旧草稿缺少该字段仍可读取。
 
-## 路径
+## 接口与数据
 
-- 页面：`/studio/podcast`，单条草稿：`/studio/podcast/[id]`
-- `POST /api/studio/podcasts`：进料 → 信息包 → 访谈稿 → 音频计划与 SRT 桩
-- `GET /api/studio/podcasts` 与 `GET /api/studio/podcasts/[id]`
-- 以上都在现有 `/studio` 与 `/api/studio` 鉴权后面
+- `/studio/podcast`：形式选择、进料、编排与草稿列表。
+- `/studio/podcast/[id]`：已保存草稿与逐轮引用。
+- `POST /api/studio/podcasts`：`form` 为 `interview | debate | roundtable`；省略时默认访谈，保持旧请求兼容。支持 `feedText`、`title`、`hostName`、`guestNames`、`collectedBy`；API 还可提供 `targetTurns`、`tone`（记录语气要求，当前模板不据此改写原文）。
+- `GET /api/studio/podcasts` 与 `GET /api/studio/podcasts/[id]`：返回草稿摘要和详情。
+- 统一入口为 `runPodcastOrchestration`；底层共享材料分片、引用和覆盖检查。
+- 三种形式共用 `podcast_drafts` 表，保留 `form`，不增加公开发布通道。
 
-## 环境变量
+上述页面和接口均受现有 Studio 鉴权保护。匿名不能读取或创建播客草稿，公开站不会展示它们。
+
+## 音频边界
+
+TTS、音频拼接尚为占位实现，不产出音频文件；SRT 按字符数估计时长，不是与真实音频对齐的字幕。辩论/圆桌新增角色只用于音频计划中的角色映射，不代表已接入不同真人声线。
 
 | 变量 | 作用 |
 | --- | --- |
-| `TTS_PROVIDER` | `stub`（默认）。预留 `elevenlabs`、`azure`、`volcengine`，尚未接适配器 |
-| `TTS_API_KEY` | 未来供应商密钥。桩实现不读取 |
-| `TTS_ENDPOINT` | 未来供应商地址 |
-| `TTS_VOICE_HOST` | 主持人声线 |
-| `TTS_VOICE_GUEST` | 嘉宾声线 |
-| `TTS_VOICE_DEFAULT` | 未指定角色声线时的回退 |
-| `PODCAST_DB_PATH` | 可选。不设则跟 `EPISODE_DB_PATH`，再否则 `data/episodes.sqlite` |
-| `DATABASE_URL` | 与一席相同。`postgres://` 或 `postgresql://` 时草稿进 Postgres |
+| `TTS_PROVIDER` | 默认 `stub`；`elevenlabs`、`azure`、`volcengine` 尚无真实适配器 |
+| `TTS_API_KEY` / `TTS_ENDPOINT` | 预留；当前不请求供应商 |
+| `TTS_VOICE_HOST` / `TTS_VOICE_GUEST` / `TTS_VOICE_DEFAULT` | 音频计划声线配置 |
+| `PODCAST_DB_PATH` | SQLite 路径；不设则跟 `EPISODE_DB_PATH`，再否则 `data/episodes.sqlite` |
+| `DATABASE_URL` | Postgres 连接配置；配置后播客草稿走 Postgres |
 
-`TTS_PROVIDER` 设成尚未实现的名字时，访谈稿仍会生成，音频计划标为 `planned`，不会去请求供应商。
+## 验证
 
-## 输入与验收边界
+`npm test` 覆盖解析保真、三种模板结构、全员发言、逐轮来源/笔记、轮次预算、旧草稿兼容、音频占位及 SQLite 回读，已加入 GitHub Actions。`npm run lint` 与 `npm run build` 检查代码及构建。
 
-- 进料中的行内链接和短更正不会被删除；独立链接与来源标题中的链接记入来源信息。
-- 信息包最多 20 条来源（每条 8,000 字）、30 条笔记（每条 4,000 字）。超过上限会明确拒绝，请分批输入；不会成功保存被静默截断的资料。
-- 访谈按完整句组合成最多 600 字的片段。超过 600 字的单句要求先分句/换行，避免截断语义。
-- 默认最多 23 轮；材料超出轮次预算时，稿件上方显示覆盖数量与未覆盖提示。编辑仍需核查遗漏片段中的限定与更正，不能把部分编排视为覆盖全部资料。
-- 最多 3 位嘉宾，姓名须彼此不同且不同于主持人；轮次预算不足以让所有人发言时明确拒绝。
-- `npm test` 运行解析、引用保真、嘉宾覆盖、音频占位和 SQLite 回归测试，并纳入 GitHub Actions。真实模型、TTS 与主观内容质量仍需后续验收。
+真实模型、真实音频、Postgres 实际实例及编辑对内容流畅度的主观验收仍是后续工作。

@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
-import { runOrchestration } from "@/server/agents/interview-orchestrator";
+import { runPodcastOrchestration } from "@/server/agents/podcast-orchestrator";
 import {
-  InterviewRunInputSchema,
+  PodcastRunInputSchema,
   PodcastDraftSchema,
   type PodcastDraft
 } from "@/server/podcast/contracts";
@@ -9,8 +9,8 @@ import { createSpeechPipeline } from "@/server/podcast/speech";
 import { structureFeed } from "@/server/podcast/structure-feed";
 import { insertPodcastDraft } from "@/server/repositories/podcast-repository";
 
-export async function createInterviewDraft(raw: unknown): Promise<PodcastDraft> {
-  const input = InterviewRunInputSchema.parse(raw);
+export async function createPodcastDraft(raw: unknown): Promise<PodcastDraft> {
+  const input = PodcastRunInputSchema.parse(raw);
   const draftId = `podcast-${Date.now().toString(36)}-${randomBytes(3).toString("hex")}`;
   const informationPackage = structureFeed(input.feedText, {
     id: `pkg-${draftId}`,
@@ -18,13 +18,15 @@ export async function createInterviewDraft(raw: unknown): Promise<PodcastDraft> 
     collectedBy: input.collectedBy
   });
   const hostName = input.hostName?.trim();
-  const script = runOrchestration({
-    form: "interview",
+  const script = runPodcastOrchestration({
+    form: input.form,
     packageId: informationPackage.id,
     package: informationPackage,
     constraints: {
       ...(hostName ? { hostName } : {}),
-      ...(input.guestNames?.length ? { guestNames: input.guestNames } : {})
+      ...(input.guestNames?.length ? { guestNames: input.guestNames } : {}),
+      ...(input.targetTurns ? { targetTurns: input.targetTurns } : {}),
+      ...(input.tone ? { tone: input.tone } : {})
     }
   }, { scriptId: draftId });
 
@@ -35,7 +37,7 @@ export async function createInterviewDraft(raw: unknown): Promise<PodcastDraft> 
   const draft = PodcastDraftSchema.parse({
     id: draftId,
     title: script.title,
-    form: "interview",
+    form: script.form,
     status: "draft",
     package: informationPackage,
     script,

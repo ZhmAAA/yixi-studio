@@ -31,7 +31,7 @@ export type InformationPackage = z.infer<typeof InformationPackageSchema>;
 
 export const OrchestrationConstraintsSchema = z.object({
   hostName: z.string().trim().min(1).max(40).optional(),
-  guestNames: z.array(z.string().trim().min(1).max(40)).min(1).max(3).optional(),
+  guestNames: z.array(z.string().trim().min(1).max(40)).min(1).max(4).optional(),
   targetTurns: z.number().int().min(5).max(24).optional(),
   tone: z.string().trim().min(1).max(80).optional()
 });
@@ -52,7 +52,7 @@ export type OrchestrationRequest = z.infer<typeof OrchestrationRequestSchema>;
 export const DialogueSpeakerSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1).max(40),
-  role: z.enum(["host", "guest", "moderator", "panelist"])
+  role: z.enum(["host", "guest", "moderator", "panelist", "debater"])
 });
 export type DialogueSpeaker = z.infer<typeof DialogueSpeakerSchema>;
 
@@ -61,7 +61,9 @@ export const DialogueTurnSchema = z.object({
   speakerId: z.string().min(1),
   text: z.string().min(1).max(2000),
   stageDirection: z.string().min(1).max(80).optional(),
-  sourceIds: z.array(z.string().min(1)).max(8)
+  sourceIds: z.array(z.string().min(1)).max(8),
+  // Zero-based indexes into InformationPackage.notes; absent in older drafts.
+  noteIndexes: z.array(z.number().int().nonnegative()).max(8).optional()
 });
 export type DialogueTurn = z.infer<typeof DialogueTurnSchema>;
 
@@ -119,11 +121,16 @@ export const PodcastDraftSchema = z.object({
 });
 export type PodcastDraft = z.infer<typeof PodcastDraftSchema>;
 
-export const InterviewRunInputSchema = z.object({
+export const PodcastRunInputSchema = z.object({
+  form: PodcastFormSchema.default("interview"),
   feedText: z.string().trim().min(20, "进料至少 20 个字").max(20000, "进料请控制在 2 万字以内"),
   title: z.string().trim().max(120).optional(),
   hostName: z.string().trim().max(40).optional(),
-  guestNames: z.array(z.string().trim().min(1).max(40)).min(1).max(3).optional(),
-  collectedBy: CollectedBySchema.optional()
+  guestNames: z.array(z.string().trim().min(1).max(40)).min(1).max(4).optional(),
+  collectedBy: CollectedBySchema.optional(),
+  targetTurns: z.number().int().min(5).max(24).optional(),
+  tone: z.string().trim().min(1).max(80).optional()
 });
-export type InterviewRunInput = z.infer<typeof InterviewRunInputSchema>;
+export type PodcastRunInput = z.infer<typeof PodcastRunInputSchema>;
+export const InterviewRunInputSchema = PodcastRunInputSchema;
+export type InterviewRunInput = PodcastRunInput;
